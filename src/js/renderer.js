@@ -55,38 +55,66 @@ class Renderer {
 
     // Render the entire molecule
     render(molecule) {
-        console.log('🎨 Rendering molecule:', {
-            atoms: molecule.atoms.length,
-            bonds: molecule.bonds.length,
-            canvasSize: { width: this.canvas.width, height: this.canvas.height }
-        });
-        
-        this.clear();
-        
-        // Detect and draw aromatic rings
-        this.drawAromaticRings(molecule);
-        
-        // Draw bonds first (so they appear behind atoms)
-        molecule.bonds.forEach(bond => this.drawBond(bond, molecule));
-        
-        // Draw atoms
-        molecule.atoms.forEach(atom => {
-            this.drawAtom(atom, molecule.selectedAtom === atom);
+        try {
+            console.log('🎨 Rendering molecule:', {
+                atoms: molecule.atoms.length,
+                bonds: molecule.bonds.length,
+                canvasSize: { width: this.canvas.width, height: this.canvas.height }
+            });
             
-            if (this.showLonePairs) {
-                this.drawLonePairs(atom, molecule);
+            this.clear();
+            
+            if (!molecule || !molecule.atoms) {
+                console.warn('⚠️ Invalid molecule data');
+                return;
             }
             
-            if (this.showCharges && Math.abs(atom.charge) > 0.1) {
-                this.drawCharge(atom);
+            // Detect and draw aromatic rings
+            if (molecule.detectRings) {
+                this.drawAromaticRings(molecule);
             }
             
-            if (this.showHybridization && atom.hybridization) {
-                this.drawHybridization(atom, molecule);
+            // Draw bonds first (so they appear behind atoms)
+            if (molecule.bonds && Array.isArray(molecule.bonds)) {
+                molecule.bonds.forEach(bond => {
+                    try {
+                        this.drawBond(bond, molecule);
+                    } catch (e) {
+                        console.error('Error drawing bond:', e);
+                    }
+                });
             }
-        });
-        
-        console.log('✓ Render complete');
+            
+            // Draw atoms
+            if (molecule.atoms && Array.isArray(molecule.atoms)) {
+                molecule.atoms.forEach(atom => {
+                    try {
+                        this.drawAtom(atom, molecule.selectedAtom === atom);
+                        
+                        if (this.showLonePairs && molecule.getAtomBonds) {
+                            this.drawLonePairs(atom, molecule);
+                        }
+                        
+                        if (this.showCharges && Math.abs(atom.charge) > 0.1) {
+                            this.drawCharge(atom);
+                        }
+                        
+                        if (this.showHybridization && atom.hybridization) {
+                            this.drawHybridization(atom, molecule);
+                        }
+                    } catch (e) {
+                        console.error('Error drawing atom:', e);
+                    }
+                });
+            }
+            
+            console.log('✓ Render complete');
+        } catch (error) {
+            console.error('🔥 Critical render error:', error);
+            this.ctx.fillStyle = '#ff0000';
+            this.ctx.font = '16px Arial';
+            this.ctx.fillText('Rendering error - check console', 10, 30);
+        }
     }
 
     // Draw an atom
