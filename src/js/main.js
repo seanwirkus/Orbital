@@ -52,6 +52,7 @@ function initializeApp() {
     setupDrawingTools();
     setupCanvasEvents();
     setupReagentDropdowns();
+    setupMechanismsList();
     
     console.log('✓ Event listeners attached');
     
@@ -405,6 +406,9 @@ function setupReagentDropdowns() {
         reagentSelect.appendChild(optgroup);
     }
     
+    // Add event listener for reagent selection
+    reagentSelect.addEventListener('change', showReagentInfo);
+    
     // Conditions dropdown
     const conditionSelect = document.getElementById('condition-select');
     if (conditionSelect && CONDITIONS) {
@@ -414,6 +418,30 @@ function setupReagentDropdowns() {
             option.textContent = `${key} (${value.name})`;
             conditionSelect.appendChild(option);
         }
+    }
+    
+    // Setup button event listeners
+    const predictBtn = document.getElementById('predict-btn');
+    if (predictBtn) {
+        predictBtn.addEventListener('click', predictProduct);
+    }
+    
+    const saveReactantBtn = document.getElementById('save-reactant-btn');
+    if (saveReactantBtn) {
+        saveReactantBtn.addEventListener('click', saveReactant);
+    }
+    
+    const useInReactionBtn = document.getElementById('use-in-reaction');
+    if (useInReactionBtn) {
+        useInReactionBtn.addEventListener('click', () => {
+            switchTab('simulate');
+            // Copy drawn molecule to reactant canvas
+            if (molecule.atoms.length > 0) {
+                reactantMolecule = JSON.parse(JSON.stringify(molecule));
+                reactantMolecule = Object.assign(new Molecule(), reactantMolecule);
+                reactantRenderer.render(reactantMolecule);
+            }
+        });
     }
 }
 
@@ -486,8 +514,100 @@ function clearReactantCanvas() {
     reactantRenderer.render(reactantMolecule);
 }
 
+function predictProduct() {
+    if (!currentReagent) {
+        alert('Please select a reagent first!');
+        return;
+    }
+    
+    if (reactantMolecule.atoms.length === 0 && savedReactants.length === 0) {
+        alert('Please draw or save a reactant molecule first!');
+        return;
+    }
+    
+    // Use the drawn reactant or the first saved reactant
+    const reactant = reactantMolecule.atoms.length > 0 ? reactantMolecule : 
+                     (savedReactants.length > 0 ? savedReactants[0].molecule : null);
+    
+    if (!reactant) {
+        alert('No reactant molecule found!');
+        return;
+    }
+    
+    // Find matching reaction in database
+    const reagentData = REAGENTS[currentReagent];
+    let predictedProduct = null;
+    
+    // Try to match with reaction database
+    if (REACTION_DATABASE) {
+        for (const [key, reaction] of Object.entries(REACTION_DATABASE)) {
+            if (reaction.reagents.includes(currentReagent)) {
+                // Apply reaction rules to predict product
+                predictedProduct = applyReactionRules(reactant, reaction);
+                
+                // Show mechanism link
+                const viewMechBtn = document.createElement('button');
+                viewMechBtn.textContent = '🔬 View Mechanism';
+                viewMechBtn.className = 'btn btn-secondary';
+                viewMechBtn.style.marginTop = '10px';
+                viewMechBtn.onclick = () => {
+                    switchTab('mechanisms');
+                    setTimeout(() => loadMechanism(key), 300);
+                };
+                
+                const infoCard = document.getElementById('reagent-info-card');
+                if (infoCard && !infoCard.querySelector('.btn-secondary')) {
+                    infoCard.appendChild(viewMechBtn);
+                }
+                
+                break;
+            }
+        }
+    }
+    
+    // If we have a predicted product, display it
+    if (predictedProduct) {
+        productMolecule = Object.assign(new Molecule(), predictedProduct);
+        productRenderer.render(productMolecule);
+        alert('Product predicted! Check the right panel.');
+    } else {
+        // Fallback: let user draw manually
+        alert(`Automatic prediction not available for ${currentReagent}. Please draw the product manually on the right canvas.`);
+    }
+}
+
+function applyReactionRules(reactant, reaction) {
+    // Simplified product prediction - in a full implementation, this would:
+    // 1. Analyze functional groups in reactant
+    // 2. Apply transformation rules from reaction.rules
+    // 3. Handle stereochemistry
+    // 4. Return modified molecule
+    
+    // For now, return a copy of reactant with modifications
+    const product = JSON.parse(JSON.stringify(reactant));
+    
+    // Basic transformation based on reaction type
+    if (reaction.type === 'oxidation') {
+        // Example: Convert alcohol to carbonyl
+        product.atoms.forEach(atom => {
+            if (atom.element === 'O' && atom.bonds === 1) {
+                atom.bonds = 2; // Single to double bond
+            }
+        });
+    } else if (reaction.type === 'reduction') {
+        // Example: Convert carbonyl to alcohol
+        product.atoms.forEach(atom => {
+            if (atom.element === 'O' && atom.bonds === 2) {
+                atom.bonds = 1; // Double to single bond
+            }
+        });
+    }
+    
+    return product;
+}
+
 function autoPredict() {
-    alert('Auto-prediction feature coming soon! For now, draw the product manually.');
+    predictProduct();
 }
 
 function manualProduct() {
@@ -510,6 +630,54 @@ function resetReaction() {
 }
 
 // ==================== MECHANISMS TAB ====================
+function setupMechanismsList() {
+    // Setup mechanism browser
+    const mechanismCategories = {
+        'Elimination': ['e2_elimination', 'e1_elimination'],
+        'Substitution': ['sn2_substitution', 'sn1_substitution'],
+        'Addition': ['electrophilic_addition'],
+        'Oxidation': ['alcohol_oxidation_primary', 'alcohol_oxidation_secondary'],
+        'Reduction': ['carbonyl_reduction'],
+        'Condensation': ['aldol_condensation'],
+        'Fragmentation': ['grob_fragmentation'],
+        'Hydrolysis': ['ester_hydrolysis_base']
+    };
+    
+    // Populate mechanism sidebar
+    const mechanismLists = document.querySelectorAll('.mechanism-list');
+    if (mechanismLists.length > 0 && REACTION_DATABASE) {
+        mechanismLists.forEach((list, index) => {
+            list.innerHTML = '';
+            const categoryKeys = Object.values(mechanismCategories)[index];
+            
+            if (categoryKeys) {
+                categoryKeys.forEach(key => {
+                    const reaction = REACTION_DATABASE[key];
+                    if (reaction) {
+                        const li = document.createElement('li');
+                        li.textContent = reaction.name;
+                        li.setAttribute('data-mechanism', key);
+                        li.classList.add('mech-btn');
+                        li.addEventListener('click', () => loadMechanism(key));
+                        list.appendChild(li);
+                    }
+                });
+            }
+        });
+    }
+    
+    // Setup control buttons
+    const playBtn = document.getElementById('play-animation');
+    if (playBtn) {
+        playBtn.addEventListener('click', playAnimation);
+    }
+    
+    const exportBtn = document.getElementById('export-svg');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', exportMechanism);
+    }
+}
+
 function loadMechanism(mechanismKey) {
     if (!REACTION_DATABASE || !REACTION_DATABASE[mechanismKey]) {
         alert('Mechanism not found!');
@@ -519,7 +687,10 @@ function loadMechanism(mechanismKey) {
     const reaction = REACTION_DATABASE[mechanismKey];
     
     // Update title
-    document.getElementById('mech-title').textContent = reaction.name;
+    const mechTitle = document.getElementById('mech-title');
+    if (mechTitle) {
+        mechTitle.textContent = reaction.name;
+    }
     
     // Generate example molecule data
     const moleculeData = generateExampleMolecule(mechanismKey);
@@ -532,19 +703,24 @@ function loadMechanism(mechanismKey) {
     
     // Highlight active button
     document.querySelectorAll('.mech-btn').forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
+    const activeBtn = document.querySelector(`[data-mechanism="${mechanismKey}"]`);
+    if (activeBtn) {
+        activeBtn.classList.add('active');
+    }
     
     // Show description
     const descDiv = document.getElementById('mech-description');
     const stepsList = document.getElementById('mech-steps-list');
-    descDiv.style.display = 'block';
+    if (descDiv) descDiv.style.display = 'block';
     
-    stepsList.innerHTML = reaction.mechanism.map((step, i) => `
-        <div style="margin-bottom: 1rem;">
-            <strong>Step ${i + 1}: ${step.title}</strong><br>
-            <span style="color: #666;">${step.description}</span>
-        </div>
-    `).join('');
+    if (stepsList) {
+        stepsList.innerHTML = reaction.mechanism.map((step, i) => `
+            <div style="margin-bottom: 1rem;">
+                <strong>Step ${i + 1}: ${step.title}</strong><br>
+                <span style="color: #666;">${step.description}</span>
+            </div>
+        `).join('');
+    }
 }
 
 function playAnimation() {
