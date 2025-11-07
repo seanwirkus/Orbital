@@ -69,48 +69,70 @@ class MechanismRenderer {
     
     // Render full mechanism from database
     renderMechanism(reactionData, moleculeData) {
-        this.initializeSVG();
-        
-        const { mechanism, name } = reactionData;
-        
-        // Add title
-        this.addTitle(name, 700, 30);
-        
-        let xOffset = 100;
-        const yCenter = 400;
-        const stepWidth = 350;
-        
-        // Draw starting material
-        this.drawMoleculeStructure(moleculeData.reactant, xOffset, yCenter, 'Starting Material');
-        
-        // Draw each mechanism step
-        mechanism.forEach((step, index) => {
-            xOffset += stepWidth;
+        try {
+            if (!reactionData || !reactionData.mechanism) {
+                console.error('Invalid reaction data');
+                return;
+            }
             
-            // Draw arrow with step info
-            this.drawMechanismArrow(
-                xOffset - stepWidth + 200,
-                yCenter,
-                xOffset - 150,
-                yCenter,
-                step,
-                index
-            );
+            this.currentMechanism = reactionData;
+            this.initializeSVG();
             
-            // Draw intermediate or product
-            const isProduct = index === mechanism.length - 1;
-            const label = isProduct ? 'Product' : `Intermediate ${index + 1}`;
+            const { mechanism, name } = reactionData;
             
-            this.drawMoleculeStructure(
-                moleculeData.intermediates?.[index] || moleculeData.product,
-                xOffset,
-                yCenter,
-                label
-            );
-        });
-        
-        // Add mechanism description at bottom
-        this.addMechanismSummary(reactionData, 700, 750);
+            // Add title
+            this.addTitle(name, 700, 30);
+            
+            let xOffset = 100;
+            const yCenter = 400;
+            const stepWidth = 350;
+            
+            // Draw starting material
+            if (moleculeData && moleculeData.reactant) {
+                this.drawMoleculeStructure(moleculeData.reactant, xOffset, yCenter, 'Starting Material');
+            }
+            
+            // Draw each mechanism step
+            mechanism.forEach((step, index) => {
+                try {
+                    xOffset += stepWidth;
+                    
+                    // Draw arrow with step info
+                    this.drawMechanismArrow(
+                        xOffset - stepWidth + 200,
+                        yCenter,
+                        xOffset - 150,
+                        yCenter,
+                        step,
+                        index
+                    );
+                    
+                    // Draw intermediate or product
+                    const isProduct = index === mechanism.length - 1;
+                    const label = isProduct ? 'Product' : `Intermediate ${index + 1}`;
+                    
+                    const molToShow = moleculeData.intermediates?.[index] || moleculeData.product;
+                    if (molToShow) {
+                        this.drawMoleculeStructure(molToShow, xOffset, yCenter, label);
+                    }
+                } catch (stepError) {
+                    console.error(`Error rendering step ${index}:`, stepError);
+                }
+            });
+            
+            // Add mechanism description at bottom
+            this.addMechanismSummary(reactionData, 700, 750);
+            
+            console.log('✓ Mechanism rendered successfully');
+        } catch (error) {
+            console.error('🔥 Error rendering mechanism:', error);
+            if (this.container) {
+                this.container.innerHTML = `<div style="padding: 20px; color: #ff0000; text-align: center;">
+                    <h3>Error rendering mechanism</h3>
+                    <p>${error.message}</p>
+                </div>`;
+            }
+        }
     }
     
     // Draw molecule structure from atom/bond data
