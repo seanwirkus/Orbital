@@ -1,0 +1,597 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: #333;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* App Container */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    background: white;
+    box-shadow: 0 0 50px rgba(0, 0, 0, 0.2);
+}
+
+/* Header */
+.header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem 2rem;
+    text-align: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.header h1 {
+    font-size: 2rem;
+    margin-bottom: 0.25rem;
+}
+
+.subtitle {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+/* Main Content */
+.main-content {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* Toolbar */
+.toolbar {
+    width: 200px;
+    background: #f8f9fa;
+    border-right: 2px solid #e0e0e0;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.toolbar h3 {
+    margin-bottom: 1rem;
+    color: #667eea;
+    font-size: 1.2rem;
+}
+
+.tool-section {
+    margin-bottom: 1.5rem;
+}
+
+.tool-section h4 {
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 0.5rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Element Grid */
+.element-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.element-btn {
+    padding: 0.75rem;
+    border: 2px solid #ddd;
+    background: white;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.element-btn:hover {
+    background: #f0f0f0;
+    transform: translateY(-2px);
+}
+
+.element-btn.active {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+/* Bond Controls */
+.bond-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.bond-btn {
+    padding: 0.6rem;
+    border: 2px solid #ddd;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.bond-btn:hover {
+    background: #f0f0f0;
+}
+
+.bond-btn.active {
+    background: #764ba2;
+    color: white;
+    border-color: #764ba2;
+}
+
+/* Action Buttons */
+.action-btn {
+    width: 100%;
+    padding: 0.6rem;
+    margin-bottom: 0.5rem;
+    border: 2px solid #ddd;
+    background: white;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.action-btn:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.action-btn.full-width {
+    width: 100%;
+}
+
+/* View Controls */
+.tool-section label {
+    display: flex;
+    align-items: center;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.tool-section input[type="checkbox"] {
+    margin-right: 0.5rem;
+    cursor: pointer;
+}
+
+/* Canvas Container */
+.canvas-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background: white;
+    position: relative;
+}
+
+#molecule-canvas {
+    flex: 1;
+    cursor: crosshair;
+    background: linear-gradient(to bottom, #ffffff 0%, #f8f9fa 100%);
+}
+
+.canvas-info {
+    padding: 0.75rem;
+    background: #f0f0f0;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #666;
+    border-top: 1px solid #ddd;
+}
+
+/* Properties Panel */
+.properties-panel {
+    width: 250px;
+    background: #f8f9fa;
+    border-left: 2px solid #e0e0e0;
+    padding: 1rem;
+    overflow-y: auto;
+}
+
+.properties-panel h3 {
+    margin-bottom: 1rem;
+    color: #667eea;
+    font-size: 1.2rem;
+}
+
+.property-section {
+    margin-bottom: 1.5rem;
+    background: white;
+    padding: 1rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.property-section h4 {
+    font-size: 0.9rem;
+    color: #555;
+    margin-bottom: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.property-section p {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+    color: #666;
+}
+
+.property-section strong {
+    color: #333;
+}
+
+.property-section span {
+    color: #667eea;
+    font-weight: 600;
+}
+
+/* Footer */
+.footer {
+    background: #f8f9fa;
+    border-top: 2px solid #e0e0e0;
+    padding: 0.75rem;
+    text-align: center;
+    font-size: 0.8rem;
+    color: #666;
+}
+
+/* Scrollbar Styling */
+.toolbar::-webkit-scrollbar,
+.properties-panel::-webkit-scrollbar {
+    width: 8px;
+}
+
+.toolbar::-webkit-scrollbar-track,
+.properties-panel::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.toolbar::-webkit-scrollbar-thumb,
+.properties-panel::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+.toolbar::-webkit-scrollbar-thumb:hover,
+.properties-panel::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .main-content {
+        flex-direction: column;
+    }
+    
+    .toolbar,
+    .properties-panel {
+        width: 100%;
+        border: none;
+        border-bottom: 2px solid #e0e0e0;
+        max-height: 200px;
+    }
+}
+
+/* Reagent Info Display */
+.reagent-info {
+    margin: 15px 0;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    border-left: 4px solid #FFD700;
+}
+
+.reagent-details {
+    color: white;
+}
+
+.reagent-name {
+    display: block;
+    font-size: 1.1em;
+    margin-bottom: 8px;
+    color: #FFD700;
+}
+
+.reagent-use,
+.reagent-conditions,
+.reagent-mechanism {
+    margin: 5px 0;
+    padding: 5px 0;
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.reagent-use::before {
+    content: "→ ";
+    font-weight: bold;
+    color: #FFD700;
+}
+
+.reagent-conditions::before {
+    content: "⚗️ Conditions: ";
+    font-weight: bold;
+}
+
+.reagent-mechanism::before {
+    content: "🔬 Mechanism: ";
+    font-weight: bold;
+}
+
+/* Reaction Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    overflow: auto;
+}
+
+.modal-content {
+    background-color: white;
+    margin: 2% auto;
+    padding: 2rem;
+    border-radius: 12px;
+    width: 80%;
+    max-width: 900px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.modal-content h2 {
+    color: #667eea;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.modal-content h3 {
+    color: #555;
+    font-size: 1rem;
+    margin: 1rem 0 0.5rem;
+}
+
+.close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    line-height: 20px;
+}
+
+.close:hover,
+.close:focus {
+    color: #000;
+}
+
+.reaction-section {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+.reaction-section h3 {
+    margin-top: 0;
+}
+
+#reactant-list,
+#product-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    min-height: 50px;
+}
+
+.molecule-card {
+    background: white;
+    padding: 0.75rem;
+    border-radius: 6px;
+    border: 2px solid #ddd;
+    text-align: center;
+    min-width: 120px;
+    display: inline-block;
+    margin: 0.25rem;
+}
+
+.molecule-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.reaction-equation-display {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.reaction-arrow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0 10px;
+}
+
+.reaction-conditions-display {
+    font-size: 0.75rem;
+    color: #666;
+    text-align: center;
+    margin-top: 5px;
+}
+
+.empty-state {
+    color: #999;
+    font-style: italic;
+    padding: 20px;
+}
+
+.arrow {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #667eea;
+    margin: 0.5rem 0;
+}
+
+.reagents-above,
+.conditions-below {
+    font-size: 0.9rem;
+    color: #666;
+    font-style: italic;
+}
+
+.reaction-controls {
+    background: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+.reaction-controls select {
+    width: 100%;
+    padding: 0.6rem;
+    margin-bottom: 0.5rem;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.reaction-info {
+    background: #e8f4f8;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+}
+
+#balance-check {
+    font-family: monospace;
+    font-size: 0.9rem;
+}
+
+.balanced {
+    color: #28a745;
+    font-weight: bold;
+}
+
+.unbalanced {
+    color: #dc3545;
+    font-weight: bold;
+}
+
+/* Mechanism Viewer Styles */
+.mechanism-modal-content {
+    max-width: 95%;
+    width: 1600px;
+    height: 90vh;
+    overflow-y: auto;
+}
+
+.mechanism-selector {
+    margin-bottom: 2rem;
+}
+
+.mechanism-selector h3 {
+    color: #667eea;
+    margin-bottom: 1rem;
+}
+
+.mechanism-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.mechanism-card {
+    background: white;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: left;
+}
+
+.mechanism-card:hover {
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    transform: translateY(-2px);
+}
+
+.mechanism-card h4 {
+    margin: 0 0 0.5rem 0;
+    color: #333;
+    font-size: 1rem;
+}
+
+.mechanism-card p {
+    margin: 0 0 0.75rem 0;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.mechanism-card .reaction-type {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+}
+
+.mechanism-card .reaction-type.oxidation {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a6f 100%);
+}
+
+.mechanism-card .reaction-type.reduction {
+    background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
+}
+
+.mechanism-display {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 2rem;
+    min-height: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mechanism-placeholder {
+    color: #999;
+    font-size: 1.1rem;
+    text-align: center;
+    font-style: italic;
+}
+
+.mechanism-controls {
+    margin-top: 1rem;
+    text-align: center;
+    padding: 1rem;
+    background: #f0f0f0;
+    border-radius: 8px;
+}
+
+.mechanism-controls button {
+    margin: 0 0.5rem;
+}
