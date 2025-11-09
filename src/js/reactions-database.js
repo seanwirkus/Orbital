@@ -483,6 +483,594 @@ const CONDITION_EFFECTS = {
     }
 };
 
+// ==================== ORGANIC CHEMISTRY II MECHANISMS ====================
+
+// Diels-Alder Reaction
+REACTION_DATABASE.diels_alder = {
+    name: 'Diels-Alder Cycloaddition',
+    type: 'cycloaddition',
+    reagents: ['dienophile'],
+    conditions: 'Heat or Lewis acid catalyst',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Concerted [4+2] Cycloaddition',
+            description: 'Conjugated diene reacts with dienophile in single concerted step',
+            electronFlow: [
+                { from: 'diene_C1', to: 'dienophile_C1', type: 'nucleophilic' },
+                { from: 'diene_C4', to: 'dienophile_C2', type: 'nucleophilic' },
+                { from: 'dienophile_pi', to: 'new_sigma_bonds', type: 'bond_formation' }
+            ],
+            intermediates: { type: 'pericyclic_TS', geometry: 'boat_like' },
+            energyLevel: 'transition_state'
+        }
+    ],
+    
+    productRules: {
+        stereochemistry: 'suprafacial',
+        endo_preference: 'endo_product_favored',
+        majorProduct: 'endo_adduct'
+    }
+};
+
+// Claisen Condensation
+REACTION_DATABASE.claisen_condensation = {
+    name: 'Claisen Condensation',
+    type: 'condensation',
+    reagents: ['NaOEt', 'LDA'],
+    conditions: 'Ethanol solvent',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Enolate Formation',
+            description: 'Base deprotonates α-carbon of ester',
+            electronFlow: [
+                { from: 'base', to: 'alpha_H', type: 'deprotonation' },
+                { from: 'C-H', to: 'C=O_resonance', type: 'resonance' }
+            ],
+            intermediates: { type: 'enolate', resonance: 'stabilized_by_carbonyl' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'Nucleophilic Acyl Substitution',
+            description: 'Enolate attacks carbonyl of second ester molecule',
+            electronFlow: [
+                { from: 'enolate', to: 'carbonyl_C', type: 'nucleophilic' },
+                { from: 'C=O_pi', to: 'oxygen', type: 'bond_formation' }
+            ],
+            intermediates: { type: 'tetrahedral_intermediate' },
+            energyLevel: 'high_energy'
+        },
+        {
+            step: 3,
+            title: 'Elimination of Alkoxide',
+            description: 'Alkoxide leaving group departs, reforming C=O',
+            electronFlow: [
+                { from: 'O_lone_pair', to: 'C=O', type: 'bond_formation' },
+                { from: 'C-OR', to: 'leaving_group', type: 'bond_cleavage' }
+            ],
+            intermediates: null,
+            energyLevel: 'product'
+        }
+    ],
+    
+    productRules: {
+        majorProduct: 'beta_ketoester'
+    }
+};
+
+// Wittig Reaction
+REACTION_DATABASE.wittig_reaction = {
+    name: 'Wittig Reaction',
+    type: 'olefination',
+    reagents: ['Ph3P=CHR'],
+    conditions: 'Room temperature',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Nucleophilic Addition',
+            description: 'Ylide carbon attacks carbonyl carbon',
+            electronFlow: [
+                { from: 'ylide_C', to: 'carbonyl_C', type: 'nucleophilic' },
+                { from: 'C=O_pi', to: 'oxygen', type: 'bond_cleavage' }
+            ],
+            intermediates: { type: 'betaine', charge: 'zwitterionic' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'Oxaphosphetane Formation',
+            description: 'Cyclization to four-membered ring',
+            electronFlow: [
+                { from: 'O_negative', to: 'P_positive', type: 'bond_formation' }
+            ],
+            intermediates: { type: 'oxaphosphetane', ring_size: 4 },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 3,
+            title: 'Ring Opening',
+            description: 'Oxaphosphetane decomposes to alkene and phosphine oxide',
+            electronFlow: [
+                { from: 'P-O', to: 'P=O', type: 'bond_formation' },
+                { from: 'C-C_sigma', to: 'C=C_pi', type: 'elimination' }
+            ],
+            intermediates: null,
+            energyLevel: 'product'
+        }
+    ],
+    
+    productRules: {
+        majorProduct: 'alkene',
+        stereochemistry: 'generally_Z_selective_with_non_stabilized_ylides'
+    }
+};
+
+// Grignard Reaction
+REACTION_DATABASE.grignard_reaction = {
+    name: 'Grignard Addition to Carbonyl',
+    type: 'addition',
+    reagents: ['RMgX'],
+    conditions: 'Dry ether solvent, anhydrous',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Nucleophilic Addition',
+            description: 'Grignard reagent attacks carbonyl carbon',
+            electronFlow: [
+                { from: 'R_Mg', to: 'carbonyl_C', type: 'nucleophilic' },
+                { from: 'C=O_pi', to: 'oxygen', type: 'bond_cleavage' }
+            ],
+            intermediates: { type: 'alkoxide_magnesium_complex' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'Aqueous Workup',
+            description: 'Protonation of alkoxide to form alcohol',
+            electronFlow: [
+                { from: 'H3O+', to: 'O_negative', type: 'protonation' }
+            ],
+            intermediates: null,
+            energyLevel: 'product'
+        }
+    ],
+    
+    productRules: {
+        majorProduct: 'alcohol',
+        with_formaldehyde: 'primary_alcohol',
+        with_aldehyde: 'secondary_alcohol',
+        with_ketone: 'tertiary_alcohol',
+        with_ester: 'tertiary_alcohol_two_R_groups'
+    }
+};
+
+// Michael Addition
+REACTION_DATABASE.michael_addition = {
+    name: 'Michael Addition (Conjugate Addition)',
+    type: 'conjugate_addition',
+    reagents: ['Enolate', 'Organocuprate'],
+    conditions: 'Catalytic base',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: '1,4-Nucleophilic Addition',
+            description: 'Nucleophile attacks β-carbon of α,β-unsaturated carbonyl',
+            electronFlow: [
+                { from: 'nucleophile', to: 'beta_carbon', type: 'nucleophilic' },
+                { from: 'C=C_pi', to: 'alpha_carbon', type: 'bond_cleavage' },
+                { from: 'alpha_carbon', to: 'carbonyl_O', type: 'resonance' }
+            ],
+            intermediates: { type: 'enolate', resonance: 'delocalized' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'Protonation',
+            description: 'Enolate intermediate is protonated',
+            electronFlow: [
+                { from: 'H3O+', to: 'enolate_O', type: 'protonation' },
+                { from: 'C=O', to: 'C-OH', type: 'bond_formation' }
+            ],
+            intermediates: null,
+            energyLevel: 'product'
+        }
+    ],
+    
+    productRules: {
+        majorProduct: '1,4-addition_product',
+        regioselectivity: 'conjugate_over_direct'
+    }
+};
+
+// Robinson Annulation
+REACTION_DATABASE.robinson_annulation = {
+    name: 'Robinson Annulation',
+    type: 'annulation',
+    reagents: ['NaOEt', 'KOH'],
+    conditions: 'Heat',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Michael Addition',
+            description: 'Enolate performs 1,4-addition to α,β-unsaturated ketone',
+            electronFlow: [
+                { from: 'enolate', to: 'beta_carbon', type: 'nucleophilic' },
+                { from: 'C=C_pi', to: 'carbonyl_O', type: 'resonance' }
+            ],
+            intermediates: { type: 'michael_adduct' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'Intramolecular Aldol',
+            description: 'Intramolecular aldol condensation forms ring',
+            electronFlow: [
+                { from: 'enolate', to: 'carbonyl_C', type: 'nucleophilic' }
+            ],
+            intermediates: { type: 'aldol_product' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 3,
+            title: 'Dehydration',
+            description: 'Loss of water to form α,β-unsaturated ketone',
+            electronFlow: [
+                { from: 'base', to: 'alpha_H', type: 'deprotonation' },
+                { from: 'C-OH', to: 'leaving_group', type: 'elimination' },
+                { from: 'C-H', to: 'C=C', type: 'bond_formation' }
+            ],
+            intermediates: null,
+            energyLevel: 'product'
+        }
+    ],
+    
+    productRules: {
+        majorProduct: 'cyclohexenone',
+        ring_size: 6
+    }
+};
+
+// Hofmann Elimination
+REACTION_DATABASE.hofmann_elimination = {
+    name: 'Hofmann Elimination',
+    type: 'elimination',
+    reagents: ['Ag2O', 'H2O', 'heat'],
+    conditions: 'Excess CH3I then heat',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Quaternary Ammonium Formation',
+            description: 'Exhaustive methylation of amine',
+            electronFlow: [
+                { from: 'amine', to: 'CH3I', type: 'nucleophilic' }
+            ],
+            intermediates: { type: 'quaternary_ammonium_salt' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'E2 Elimination',
+            description: 'Hydroxide removes less substituted β-hydrogen',
+            electronFlow: [
+                { from: 'OH-', to: 'beta_H', type: 'deprotonation' },
+                { from: 'C-H', to: 'C=C', type: 'bond_formation' },
+                { from: 'C-N+', to: 'amine', type: 'bond_cleavage' }
+            ],
+            intermediates: null,
+            energyLevel: 'product'
+        }
+    ],
+    
+    productRules: {
+        majorProduct: 'less_substituted_alkene',
+        regioselectivity: 'anti_zaitsev'
+    }
+};
+
+// Cope Elimination
+REACTION_DATABASE.cope_elimination = {
+    name: 'Cope Elimination',
+    type: 'elimination',
+    reagents: ['H2O2'],
+    conditions: 'Heat (100-150°C)',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Amine Oxide Formation',
+            description: 'Oxidation of tertiary amine to N-oxide',
+            electronFlow: [
+                { from: 'amine', to: 'H2O2', type: 'oxidation' }
+            ],
+            intermediates: { type: 'amine_N_oxide' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'Syn Elimination',
+            description: 'Concerted five-membered cyclic transition state',
+            electronFlow: [
+                { from: 'beta_H', to: 'oxygen', type: 'syn_elimination' },
+                { from: 'C-H', to: 'C=C', type: 'bond_formation' },
+                { from: 'C-N', to: 'hydroxylamine', type: 'bond_cleavage' }
+            ],
+            intermediates: { type: 'cyclic_TS', geometry: 'syn_periplanar' },
+            energyLevel: 'transition_state'
+        }
+    ],
+    
+    productRules: {
+        stereochemistry: 'syn',
+        majorProduct: 'less_substituted_alkene'
+    }
+};
+
+// Pinacol Rearrangement
+REACTION_DATABASE.pinacol_rearrangement = {
+    name: 'Pinacol Rearrangement',
+    type: 'rearrangement',
+    reagents: ['H2SO4', 'H3PO4'],
+    conditions: 'Acid catalyst, heat',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Protonation of Hydroxyl',
+            description: 'Acid protonates one OH group',
+            electronFlow: [
+                { from: 'H+', to: 'OH', type: 'protonation' }
+            ],
+            intermediates: { type: 'protonated_alcohol' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'Water Loss',
+            description: 'Formation of carbocation',
+            electronFlow: [
+                { from: 'C-OH2+', to: 'H2O', type: 'bond_cleavage' }
+            ],
+            intermediates: { type: 'carbocation' },
+            energyLevel: 'high_energy'
+        },
+        {
+            step: 3,
+            title: '1,2-Methyl Shift',
+            description: 'Alkyl group migrates with its bonding electrons',
+            electronFlow: [
+                { from: 'C-C', to: 'carbocation', type: 'migration' },
+                { from: 'OH', to: 'C+', type: 'resonance' }
+            ],
+            intermediates: { type: 'oxonium_ion' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 4,
+            title: 'Deprotonation',
+            description: 'Loss of proton forms ketone',
+            electronFlow: [
+                { from: 'base', to: 'H+', type: 'deprotonation' },
+                { from: 'O-H', to: 'C=O', type: 'bond_formation' }
+            ],
+            intermediates: null,
+            energyLevel: 'product'
+        }
+    ],
+    
+    productRules: {
+        majorProduct: 'ketone_or_aldehyde',
+        migration: 'more_stable_carbocation_intermediate'
+    }
+};
+
+// Beckmann Rearrangement
+REACTION_DATABASE.beckmann_rearrangement = {
+    name: 'Beckmann Rearrangement',
+    type: 'rearrangement',
+    reagents: ['H2SO4', 'PCl5', 'SOCl2'],
+    conditions: 'Acidic conditions',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Protonation of Oxime OH',
+            description: 'Activation of leaving group',
+            electronFlow: [
+                { from: 'H+', to: 'N-OH', type: 'protonation' }
+            ],
+            intermediates: { type: 'protonated_oxime' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'Concerted Migration',
+            description: 'Anti group migrates as water leaves',
+            electronFlow: [
+                { from: 'C-C', to: 'nitrogen', type: 'migration' },
+                { from: 'N-OH2+', to: 'H2O', type: 'bond_cleavage' }
+            ],
+            intermediates: { type: 'nitrilium_ion' },
+            energyLevel: 'transition_state'
+        },
+        {
+            step: 3,
+            title: 'Hydration',
+            description: 'Water attacks nitrilium ion',
+            electronFlow: [
+                { from: 'H2O', to: 'C+', type: 'nucleophilic' }
+            ],
+            intermediates: { type: 'imidic_acid' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 4,
+            title: 'Tautomerization',
+            description: 'Rearrangement to amide',
+            electronFlow: [
+                { from: 'N-H', to: 'C=O', type: 'tautomerization' }
+            ],
+            intermediates: null,
+            energyLevel: 'product'
+        }
+    ],
+    
+    productRules: {
+        majorProduct: 'amide',
+        stereochemistry: 'anti_group_migrates'
+    }
+};
+
+// Baeyer-Villiger Oxidation
+REACTION_DATABASE.baeyer_villiger = {
+    name: 'Baeyer-Villiger Oxidation',
+    type: 'oxidation',
+    reagents: ['mCPBA', 'H2O2'],
+    conditions: 'Peracid',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Nucleophilic Addition',
+            description: 'Ketone attacks peracid',
+            electronFlow: [
+                { from: 'ketone_O', to: 'peracid_O', type: 'nucleophilic' }
+            ],
+            intermediates: { type: 'criegee_intermediate' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'Alkyl Migration',
+            description: 'More substituted alkyl group migrates',
+            electronFlow: [
+                { from: 'C-C', to: 'oxygen', type: 'migration' },
+                { from: 'O-O', to: 'carboxylate', type: 'bond_cleavage' }
+            ],
+            intermediates: null,
+            energyLevel: 'product'
+        }
+    ],
+    
+    productRules: {
+        majorProduct: 'ester',
+        migratory_aptitude: 'tertiary > secondary > primary > methyl',
+        cyclic_ketones: 'lactone'
+    }
+};
+
+// Ozonolysis
+REACTION_DATABASE.ozonolysis = {
+    name: 'Ozonolysis',
+    type: 'oxidative_cleavage',
+    reagents: ['O3', 'Zn/H2O or DMS'],
+    conditions: 'Low temperature then reductive workup',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Formation of Molozonide',
+            description: '1,3-dipolar cycloaddition of ozone to alkene',
+            electronFlow: [
+                { from: 'O3', to: 'C=C', type: 'cycloaddition' }
+            ],
+            intermediates: { type: 'molozonide', stability: 'unstable' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'Molozonide Rearrangement',
+            description: 'Fragmentation and recombination to ozonide',
+            electronFlow: [
+                { from: 'molozonide', to: 'carbonyl_oxide', type: 'fragmentation' }
+            ],
+            intermediates: { type: 'ozonide', ring: 'five_membered' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 3,
+            title: 'Reductive Workup',
+            description: 'Reduction to carbonyl compounds',
+            electronFlow: [
+                { from: 'reducing_agent', to: 'ozonide', type: 'reduction' }
+            ],
+            intermediates: null,
+            energyLevel: 'product'
+        }
+    ],
+    
+    productRules: {
+        majorProduct: 'two_carbonyl_compounds',
+        with_Zn: 'aldehydes_or_ketones',
+        with_H2O2: 'carboxylic_acids'
+    }
+};
+
+// Fischer Esterification
+REACTION_DATABASE.fischer_esterification = {
+    name: 'Fischer Esterification',
+    type: 'esterification',
+    reagents: ['H2SO4', 'ROH'],
+    conditions: 'Acid catalyst, excess alcohol',
+    
+    mechanism: [
+        {
+            step: 1,
+            title: 'Protonation of Carbonyl',
+            description: 'Acid activates carboxylic acid',
+            electronFlow: [
+                { from: 'H+', to: 'C=O', type: 'protonation' }
+            ],
+            intermediates: { type: 'protonated_carbonyl' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 2,
+            title: 'Nucleophilic Attack',
+            description: 'Alcohol attacks carbonyl carbon',
+            electronFlow: [
+                { from: 'ROH', to: 'C+', type: 'nucleophilic' }
+            ],
+            intermediates: { type: 'tetrahedral_intermediate' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 3,
+            title: 'Proton Transfer',
+            description: 'Protonation of OH, deprotonation of OR',
+            electronFlow: [
+                { from: 'H+', to: 'OH', type: 'protonation' }
+            ],
+            intermediates: { type: 'protonated_intermediate' },
+            energyLevel: 'intermediate'
+        },
+        {
+            step: 4,
+            title: 'Water Elimination',
+            description: 'Loss of water forms ester',
+            electronFlow: [
+                { from: 'C-OH2+', to: 'H2O', type: 'elimination' },
+                { from: 'O', to: 'C=O', type: 'bond_formation' }
+            ],
+            intermediates: null,
+            energyLevel: 'product'
+        }
+    ],
+    
+    productRules: {
+        majorProduct: 'ester',
+        equilibrium: 'use_excess_alcohol_or_remove_water'
+    }
+};
+
 // Export for use in main application
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { REACTION_DATABASE, FUNCTIONAL_GROUPS, CONDITION_EFFECTS };

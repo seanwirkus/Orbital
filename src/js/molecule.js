@@ -209,6 +209,21 @@ class Molecule {
         });
     }
 
+    // Get atoms near a position (for auto-connect)
+    getNearbyAtoms(x, y, maxDistance = 80) {
+        return this.atoms.filter(atom => {
+            const dx = atom.position.x - x;
+            const dy = atom.position.y - y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            return distance > 0 && distance <= maxDistance;
+        }).sort((a, b) => {
+            // Sort by distance (closest first)
+            const distA = Math.sqrt(Math.pow(a.position.x - x, 2) + Math.pow(a.position.y - y, 2));
+            const distB = Math.sqrt(Math.pow(b.position.x - x, 2) + Math.pow(b.position.y - y, 2));
+            return distA - distB;
+        });
+    }
+
     // Get bonds connected to an atom
     getAtomBonds(atomId) {
         return this.bonds.filter(bond => 

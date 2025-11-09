@@ -31,6 +31,10 @@ class MechanismRenderer {
     createArrowMarkers() {
         const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
         
+        // Main arrow for reaction equations
+        const mainMarker = this.createMarker('arrowhead-main', '#667eea', 12, 12);
+        defs.appendChild(mainMarker);
+        
         // Blue arrow for nucleophilic attack
         const blueMarker = this.createMarker('arrow-blue', '#0066cc');
         defs.appendChild(blueMarker);
@@ -50,17 +54,17 @@ class MechanismRenderer {
         this.svg.appendChild(defs);
     }
     
-    createMarker(id, color) {
+    createMarker(id, color, width = 10, height = 10) {
         const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
         marker.setAttribute('id', id);
-        marker.setAttribute('markerWidth', '10');
-        marker.setAttribute('markerHeight', '10');
-        marker.setAttribute('refX', '9');
-        marker.setAttribute('refY', '3');
+        marker.setAttribute('markerWidth', width);
+        marker.setAttribute('markerHeight', height);
+        marker.setAttribute('refX', width - 1);
+        marker.setAttribute('refY', height / 2);
         marker.setAttribute('orient', 'auto');
         
         const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-        polygon.setAttribute('points', '0 0, 10 3, 0 6');
+        polygon.setAttribute('points', `0 0, ${width} ${height/2}, 0 ${height}`);
         polygon.setAttribute('fill', color);
         
         marker.appendChild(polygon);
@@ -76,52 +80,40 @@ class MechanismRenderer {
             }
             
             this.currentMechanism = reactionData;
-            this.initializeSVG();
+            this.initializeSVG(2000, 900); // Larger canvas for bigger molecules
             
             const { mechanism, name } = reactionData;
             
             // Add title
-            this.addTitle(name, 700, 30);
+            this.addTitle(name, 1000, 50);
             
-            let xOffset = 100;
-            const yCenter = 400;
-            const stepWidth = 350;
+            // Better spacing for organic equations with larger molecules
+            const startX = 200;
+            const yCenter = 450;
+            const arrowWidth = 220;
+            const moleculeSpacing = 120;
             
-            // Draw starting material
+            // Draw starting material (reactant)
             if (moleculeData && moleculeData.reactant) {
-                this.drawMoleculeStructure(moleculeData.reactant, xOffset, yCenter, 'Starting Material');
+                this.drawMoleculeStructure(moleculeData.reactant, startX, yCenter, 'Reactant', 3.5);
             }
             
-            // Draw each mechanism step
-            mechanism.forEach((step, index) => {
-                try {
-                    xOffset += stepWidth;
-                    
-                    // Draw arrow with step info
-                    this.drawMechanismArrow(
-                        xOffset - stepWidth + 200,
-                        yCenter,
-                        xOffset - 150,
-                        yCenter,
-                        step,
-                        index
-                    );
-                    
-                    // Draw intermediate or product
-                    const isProduct = index === mechanism.length - 1;
-                    const label = isProduct ? 'Product' : `Intermediate ${index + 1}`;
-                    
-                    const molToShow = moleculeData.intermediates?.[index] || moleculeData.product;
-                    if (molToShow) {
-                        this.drawMoleculeStructure(molToShow, xOffset, yCenter, label);
-                    }
-                } catch (stepError) {
-                    console.error(`Error rendering step ${index}:`, stepError);
-                }
-            });
+            // Calculate positions
+            let currentX = startX + moleculeSpacing;
             
-            // Add mechanism description at bottom
-            this.addMechanismSummary(reactionData, 700, 750);
+            // Draw reaction arrow with reagent
+            const arrowY = yCenter;
+            this.drawReactionArrow(currentX, arrowY, currentX + arrowWidth, arrowY, reactionData);
+            
+            currentX += arrowWidth + moleculeSpacing;
+            
+            // Draw product
+            if (moleculeData && moleculeData.product) {
+                this.drawMoleculeStructure(moleculeData.product, currentX, yCenter, 'Product', 3.5);
+            }
+            
+            // Add mechanism steps description at bottom
+            this.addMechanismSteps(reactionData, 50, 480);
             
             console.log('✓ Mechanism rendered successfully');
         } catch (error) {
@@ -135,17 +127,60 @@ class MechanismRenderer {
         }
     }
     
+    // Draw a reaction arrow with reagent and conditions
+    drawReactionArrow(x1, y, x2, y2, reactionData) {
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        
+        // Main arrow line
+        const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        arrow.setAttribute('x1', x1);
+        arrow.setAttribute('y1', y);
+        arrow.setAttribute('x2', x2);
+        arrow.setAttribute('y2', y);
+        arrow.setAttribute('stroke', '#667eea');
+        arrow.setAttribute('stroke-width', '4');
+        arrow.setAttribute('marker-end', 'url(#arrowhead-main)');
+        group.appendChild(arrow);
+        
+        // Reagent label above arrow
+        if (reactionData.reagents && reactionData.reagents.length > 0) {
+            const reagentText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            reagentText.setAttribute('x', (x1 + x2) / 2);
+            reagentText.setAttribute('y', y - 15);
+            reagentText.setAttribute('text-anchor', 'middle');
+            reagentText.setAttribute('font-size', '16');
+            reagentText.setAttribute('font-weight', '600');
+            reagentText.setAttribute('fill', '#667eea');
+            reagentText.textContent = reactionData.reagents.join(', ');
+            group.appendChild(reagentText);
+        }
+        
+        // Conditions label below arrow
+        if (reactionData.conditions) {
+            const condText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            condText.setAttribute('x', (x1 + x2) / 2);
+            condText.setAttribute('y', y + 25);
+            condText.setAttribute('text-anchor', 'middle');
+            condText.setAttribute('font-size', '14');
+            condText.setAttribute('fill', '#666');
+            condText.textContent = reactionData.conditions;
+            group.appendChild(condText);
+        }
+        
+        this.svg.appendChild(group);
+    }
+    
     // Draw molecule structure from atom/bond data
-    drawMoleculeStructure(molecule, centerX, centerY, label) {
+    drawMoleculeStructure(molecule, centerX, centerY, label, scale = 1.5) {
         const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         group.setAttribute('class', 'molecule-structure');
         
         // Label with better styling
         const labelBg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-        labelBg.setAttribute('x', centerX - 60);
-        labelBg.setAttribute('y', centerY - 135);
-        labelBg.setAttribute('width', '120');
-        labelBg.setAttribute('height', '25');
+        labelBg.setAttribute('x', centerX - 50);
+        labelBg.setAttribute('y', centerY - 140);
+        labelBg.setAttribute('width', '100');
+        labelBg.setAttribute('height', '24');
         labelBg.setAttribute('fill', '#f0f4ff');
         labelBg.setAttribute('stroke', '#667eea');
         labelBg.setAttribute('stroke-width', '2');
@@ -154,40 +189,42 @@ class MechanismRenderer {
         
         const labelText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
         labelText.setAttribute('x', centerX);
-        labelText.setAttribute('y', centerY - 115);
+        labelText.setAttribute('y', centerY - 122);
         labelText.setAttribute('text-anchor', 'middle');
-        labelText.setAttribute('font-size', '14');
+        labelText.setAttribute('font-size', '13');
         labelText.setAttribute('font-weight', '600');
         labelText.setAttribute('fill', '#667eea');
         labelText.textContent = label;
         group.appendChild(labelText);
         
         // Convert molecule data to SVG paths
-        if (molecule && molecule.atoms) {
+        if (molecule && molecule.atoms && molecule.atoms.length > 0) {
             // Draw bonds first (so they appear behind atoms)
-            molecule.bonds.forEach(bond => {
-                const atom1 = molecule.atoms.find(a => a.id === bond.atom1);
-                const atom2 = molecule.atoms.find(a => a.id === bond.atom2);
-                
-                if (atom1 && atom2) {
-                    this.drawBond(
-                        group,
-                        atom1.position.x + centerX - 100,
-                        atom1.position.y + centerY - 100,
-                        atom2.position.x + centerX - 100,
-                        atom2.position.y + centerY - 100,
-                        bond.order
-                    );
-                }
-            });
+            if (molecule.bonds && molecule.bonds.length > 0) {
+                molecule.bonds.forEach(bond => {
+                    const atom1 = molecule.atoms.find(a => a.id === bond.atom1);
+                    const atom2 = molecule.atoms.find(a => a.id === bond.atom2);
+                    
+                    if (atom1 && atom2) {
+                        this.drawBond(
+                            group,
+                            centerX + (atom1.position.x - 90) * scale,
+                            centerY + (atom1.position.y - 100) * scale,
+                            centerX + (atom2.position.x - 90) * scale,
+                            centerY + (atom2.position.y - 100) * scale,
+                            bond.order
+                        );
+                    }
+                });
+            }
             
-            // Draw atoms with animation capability
+            // Draw atoms with proper scaling
             molecule.atoms.forEach((atom, index) => {
                 const atomGroup = this.drawAtom(
                     group,
                     atom.element,
-                    atom.position.x + centerX - 100,
-                    atom.position.y + centerY - 100,
+                    centerX + (atom.position.x - 90) * scale,
+                    centerY + (atom.position.y - 100) * scale,
                     atom.charge || 0
                 );
                 
@@ -199,16 +236,16 @@ class MechanismRenderer {
                         atomGroup.style.transition = 'all 0.3s ease-out';
                         atomGroup.style.opacity = '1';
                         atomGroup.style.transform = 'scale(1)';
-                    }, 50 + index * 50);
+                    }, 50 + index * 30);
                 }
             });
         } else {
-            // Placeholder for empty structure with better design
+            // Placeholder for empty structure
             const placeholder = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            placeholder.setAttribute('x', centerX - 80);
+            placeholder.setAttribute('x', centerX - 60);
             placeholder.setAttribute('y', centerY - 80);
-            placeholder.setAttribute('width', '160');
-            placeholder.setAttribute('height', '160');
+            placeholder.setAttribute('width', '120');
+            placeholder.setAttribute('height', '120');
             placeholder.setAttribute('fill', '#fafbfc');
             placeholder.setAttribute('stroke', '#e0e0e0');
             placeholder.setAttribute('stroke-width', '2');
@@ -236,17 +273,18 @@ class MechanismRenderer {
         const length = Math.sqrt(dx * dx + dy * dy);
         const perpX = -dy / length;
         const perpY = dx / length;
-        const offset = 4;
+        const offset = 6;
         
         if (order === 1) {
-            // Single bond
+            // Single bond - thicker and more visible
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line.setAttribute('x1', x1);
             line.setAttribute('y1', y1);
             line.setAttribute('x2', x2);
             line.setAttribute('y2', y2);
-            line.setAttribute('stroke', '#000');
-            line.setAttribute('stroke-width', '2');
+            line.setAttribute('stroke', '#222');
+            line.setAttribute('stroke-width', '6');
+            line.setAttribute('stroke-linecap', 'round');
             parent.appendChild(line);
         } else if (order === 2) {
             // Double bond
@@ -256,8 +294,9 @@ class MechanismRenderer {
                 line.setAttribute('y1', y1 + perpY * offset * i);
                 line.setAttribute('x2', x2 + perpX * offset * i);
                 line.setAttribute('y2', y2 + perpY * offset * i);
-                line.setAttribute('stroke', '#000');
-                line.setAttribute('stroke-width', '2');
+                line.setAttribute('stroke', '#222');
+                line.setAttribute('stroke-width', '6');
+                line.setAttribute('stroke-linecap', 'round');
                 parent.appendChild(line);
             }
         } else if (order === 3) {
@@ -268,8 +307,9 @@ class MechanismRenderer {
                 line.setAttribute('y1', y1 + perpY * offset * i);
                 line.setAttribute('x2', x2 + perpX * offset * i);
                 line.setAttribute('y2', y2 + perpY * offset * i);
-                line.setAttribute('stroke', '#000');
-                line.setAttribute('stroke-width', '2');
+                line.setAttribute('stroke', '#222');
+                line.setAttribute('stroke-width', '6');
+                line.setAttribute('stroke-linecap', 'round');
                 parent.appendChild(line);
             }
         }
@@ -277,48 +317,53 @@ class MechanismRenderer {
     
     // Draw atom with element symbol and charge
     drawAtom(parent, element, x, y, charge) {
-        // Don't draw carbon unless it's charged or special
-        if (element === 'C' && charge === 0) return;
+        const atomGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        atomGroup.setAttribute('class', 'atom-group');
         
         const colors = {
-            'C': '#000', 'H': '#000', 'O': '#d00', 'N': '#00d',
-            'S': '#cc0', 'P': '#f90', 'F': '#0c0', 'Cl': '#0c0',
-            'Br': '#a52a2a', 'I': '#800080'
+            'C': '#222', 'H': '#666', 'O': '#ff4444', 'N': '#4444ff',
+            'S': '#ffaa00', 'P': '#ff9900', 'F': '#44ff44', 'Cl': '#44ff44',
+            'Br': '#aa4400', 'I': '#800080', 'Mg': '#999'
         };
         
-        // Background circle for non-carbon atoms
-        if (element !== 'C') {
-            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-            circle.setAttribute('cx', x);
-            circle.setAttribute('cy', y);
-            circle.setAttribute('r', '12');
-            circle.setAttribute('fill', '#fff');
-            circle.setAttribute('stroke', 'none');
-            parent.appendChild(circle);
+        // Always draw a visible circle for atoms in mechanism diagrams
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x);
+        circle.setAttribute('cy', y);
+        circle.setAttribute('r', element === 'C' ? '12' : '18');
+        circle.setAttribute('fill', element === 'C' ? '#222' : '#fff');
+        circle.setAttribute('stroke', colors[element] || '#000');
+        circle.setAttribute('stroke-width', '2.5');
+        circle.setAttribute('class', 'atom-circle');
+        atomGroup.appendChild(circle);
+        
+        // Element symbol (always show for non-H atoms)
+        if (element !== 'H') {
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', x);
+            text.setAttribute('y', y + 6);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('font-size', element === 'C' ? '14' : '18');
+            text.setAttribute('font-weight', 'bold');
+            text.setAttribute('fill', element === 'C' ? '#fff' : colors[element] || '#000');
+            text.textContent = element;
+            atomGroup.appendChild(text);
         }
         
-        // Element symbol
-        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-        text.setAttribute('x', x);
-        text.setAttribute('y', y + 5);
-        text.setAttribute('text-anchor', 'middle');
-        text.setAttribute('font-size', '18');
-        text.setAttribute('font-weight', 'bold');
-        text.setAttribute('fill', colors[element] || '#000');
-        text.textContent = element;
-        parent.appendChild(text);
-        
-        // Charge
+        // Charge indicator
         if (charge !== 0) {
             const chargeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            chargeText.setAttribute('x', x + 15);
-            chargeText.setAttribute('y', y - 8);
+            chargeText.setAttribute('x', x + 18);
+            chargeText.setAttribute('y', y - 10);
             chargeText.setAttribute('font-size', '14');
-            chargeText.setAttribute('fill', '#0066cc');
+            chargeText.setAttribute('fill', charge > 0 ? '#ff4444' : '#4444ff');
             chargeText.setAttribute('font-weight', 'bold');
-            chargeText.textContent = charge > 0 ? `+${charge > 1 ? charge : ''}` : `-${Math.abs(charge) > 1 ? Math.abs(charge) : ''}`;
-            parent.appendChild(chargeText);
+            chargeText.textContent = charge > 0 ? `+${charge > 1 ? charge : ''}` : `${charge < -1 ? charge : '−'}`;
+            atomGroup.appendChild(chargeText);
         }
+        
+        parent.appendChild(atomGroup);
+        return atomGroup;
     }
     
     // Draw curved arrow showing electron flow
@@ -458,6 +503,49 @@ class MechanismRenderer {
         condText.setAttribute('fill', '#666');
         condText.textContent = `Conditions: ${reactionData.conditions}`;
         group.appendChild(condText);
+        
+        this.svg.appendChild(group);
+    }
+    
+    // Add mechanism steps description
+    addMechanismSteps(reactionData, x, y) {
+        const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        
+        // Title for steps
+        const stepsTitle = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+        stepsTitle.setAttribute('x', x);
+        stepsTitle.setAttribute('y', y);
+        stepsTitle.setAttribute('font-size', '16');
+        stepsTitle.setAttribute('font-weight', 'bold');
+        stepsTitle.setAttribute('fill', '#667eea');
+        stepsTitle.textContent = 'Mechanism Steps:';
+        group.appendChild(stepsTitle);
+        
+        // Add each step
+        if (reactionData.mechanism && reactionData.mechanism.length > 0) {
+            reactionData.mechanism.forEach((step, index) => {
+                const yPos = y + 30 + (index * 40);
+                
+                // Step number and title
+                const stepText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                stepText.setAttribute('x', x);
+                stepText.setAttribute('y', yPos);
+                stepText.setAttribute('font-size', '14');
+                stepText.setAttribute('font-weight', '600');
+                stepText.setAttribute('fill', '#333');
+                stepText.textContent = `${index + 1}. ${step.title}`;
+                group.appendChild(stepText);
+                
+                // Step description
+                const descText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                descText.setAttribute('x', x + 20);
+                descText.setAttribute('y', yPos + 18);
+                descText.setAttribute('font-size', '12');
+                descText.setAttribute('fill', '#666');
+                descText.textContent = this.truncateText(step.description, 120);
+                group.appendChild(descText);
+            });
+        }
         
         this.svg.appendChild(group);
     }

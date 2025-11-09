@@ -310,7 +310,15 @@
     </div>
 
     <!-- JavaScript -->
+    <script>
+        console.log('HTML loaded');
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            console.error('Global error:', msg, 'at', url, ':', lineNo);
+            return false;
+        };
+    </script>
     <script src="src/js/elements.js"></script>
+    <script src="src/js/geometry.js"></script>
     <script src="src/js/molecule.js"></script>
     <script src="src/js/naming.js"></script>
     <script src="src/js/reactions.js"></script>
