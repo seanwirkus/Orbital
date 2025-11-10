@@ -26,6 +26,15 @@ let showLonePairs = false;
 let showValenceErrors = true;
 let showChiralCenters = false;
 
+// Advanced drawing state
+let chainDrawingState = null;
+let chainPopupEl = null;
+let chainPopupCountEl = null;
+let autoBondStart = false;
+
+// Learning system
+let learningManager = null;
+
 let currentElement = 'C';
 let currentBondOrder = 1;
 let currentTab = 'draw';
@@ -50,6 +59,10 @@ function initializeApp() {
         // Initialize chemistry intelligence
         chemIntelligence = new ChemistryIntelligence();
         console.log('✓ Chemistry intelligence initialized');
+
+        // Initialize learning manager
+        learningManager = new LearningManager();
+        console.log('✓ Learning manager ready');
         
         // Initialize canvases
         const mainCanvas = document.getElementById('molecule-canvas');
@@ -80,7 +93,9 @@ function initializeApp() {
         setupCanvasEvents();
         setupReagentDropdowns();
         setupMechanismsList();
-        
+        setupChainPopup();
+        setupLearningNotebook();
+
         console.log('✓ Event listeners attached');
         
         // Initial render
@@ -308,27 +323,164 @@ function setupCanvasEvents() {
     const mainCanvas = document.getElementById('molecule-canvas');
     if (mainCanvas) {
         mainCanvas.addEventListener('click', (e) => handleCanvasClick(e, molecule, renderer));
-        mainCanvas.addEventListener('mousedown', (e) => handleMouseDown(e, molecule));
+        mainCanvas.addEventListener('mousedown', (e) => handleMouseDown(e, molecule, renderer));
         mainCanvas.addEventListener('mousemove', (e) => handleMouseMove(e, molecule, renderer));
         mainCanvas.addEventListener('mouseup', (e) => handleMouseUp(e, molecule, renderer));
     }
-    
+
     // Reactant canvas
     const reactantCanvas = document.getElementById('reactant-canvas');
     if (reactantCanvas) {
         reactantCanvas.addEventListener('click', (e) => handleCanvasClick(e, reactantMolecule, reactantRenderer));
-        reactantCanvas.addEventListener('mousedown', (e) => handleMouseDown(e, reactantMolecule));
+        reactantCanvas.addEventListener('mousedown', (e) => handleMouseDown(e, reactantMolecule, reactantRenderer));
         reactantCanvas.addEventListener('mousemove', (e) => handleMouseMove(e, reactantMolecule, reactantRenderer));
         reactantCanvas.addEventListener('mouseup', (e) => handleMouseUp(e, reactantMolecule, reactantRenderer));
     }
-    
+
     // Product canvas
     const productCanvas = document.getElementById('product-canvas');
     if (productCanvas) {
         productCanvas.addEventListener('click', (e) => handleCanvasClick(e, productMolecule, productRenderer));
-        productCanvas.addEventListener('mousedown', (e) => handleMouseDown(e, productMolecule));
+        productCanvas.addEventListener('mousedown', (e) => handleMouseDown(e, productMolecule, productRenderer));
         productCanvas.addEventListener('mousemove', (e) => handleMouseMove(e, productMolecule, productRenderer));
         productCanvas.addEventListener('mouseup', (e) => handleMouseUp(e, productMolecule, productRenderer));
+    }
+}
+
+function setupChainPopup() {
+    if (chainPopupEl) return;
+    const canvasSection = document.querySelector('.canvas-section');
+    if (!canvasSection) return;
+
+    chainPopupEl = document.createElement('div');
+    chainPopupEl.id = 'chain-popup';
+    chainPopupEl.className = 'chain-popup';
+    chainPopupEl.innerHTML = `
+        <strong>Chain length:</strong>
+        <span class="chain-count">1</span>
+        carbons
+    `;
+
+    chainPopupCountEl = chainPopupEl.querySelector('.chain-count');
+    canvasSection.appendChild(chainPopupEl);
+    hideChainPopup();
+}
+
+function showChainPopup(count = 1) {
+    if (!chainPopupEl) return;
+    updateChainPopup(count);
+    chainPopupEl.classList.add('visible');
+}
+
+function hideChainPopup() {
+    if (!chainPopupEl) return;
+    chainPopupEl.classList.remove('visible');
+}
+
+function updateChainPopup(count) {
+    if (!chainPopupCountEl) return;
+    chainPopupCountEl.textContent = count;
+}
+
+function setupLearningNotebook() {
+    if (!learningManager) return;
+
+    const form = document.getElementById('learning-form');
+    const problemInput = document.getElementById('learning-problem');
+    const solutionInput = document.getElementById('learning-solution');
+
+    if (!form || !problemInput || !solutionInput) return;
+
+    renderLearningEntries();
+    updateLearningSuggestions(currentReagent);
+
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        const problem = problemInput.value.trim();
+        const reagent = document.getElementById('learning-reagent')?.value.trim() || '';
+        const insight = document.getElementById('learning-insight')?.value.trim() || '';
+        const solution = solutionInput.value.trim();
+
+        if (!problem || !solution) {
+            return;
+        }
+
+        learningManager.addEntry({ problem, reagent, solution, insight });
+        form.reset();
+        renderLearningEntries();
+        updateLearningSuggestions(currentReagent);
+    });
+}
+
+function renderLearningEntries() {
+    const container = document.getElementById('learning-entries');
+    if (!container || !learningManager) return;
+
+    const entries = learningManager.getEntries();
+
+    if (!entries.length) {
+        container.innerHTML = '<p class="empty-state">No saved problems yet. Log your first reaction to start training Orbital.</p>';
+        return;
+    }
+
+    const recentEntries = entries.slice(0, 5);
+    container.innerHTML = recentEntries.map(entry => `
+        <div class="learning-entry">
+            <div class="learning-entry-header">
+                <span class="learning-entry-time">${formatTimestamp(entry.createdAt)}</span>
+                ${entry.reagentLabel ? `<span class="learning-entry-tag">${entry.reagentLabel}</span>` : ''}
+            </div>
+            <p class="learning-entry-problem">${entry.problem}</p>
+            <p class="learning-entry-solution"><strong>Outcome:</strong> ${entry.solution}</p>
+            ${entry.insight ? `<p class="learning-entry-insight"><strong>Insight:</strong> ${entry.insight}</p>` : ''}
+        </div>
+    `).join('');
+}
+
+function updateLearningSuggestions(reagentKey) {
+    const container = document.getElementById('learning-suggestions');
+    if (!container || !learningManager) return;
+
+    if (!reagentKey) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    const suggestions = learningManager.findSuggestions({ reagent: reagentKey });
+
+    if (!suggestions.length) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+    }
+
+    container.style.display = 'flex';
+    container.innerHTML = `
+        <h4>Guided insights for ${reagentKey}</h4>
+        ${suggestions.map(entry => `
+            <div class="learning-suggestion">
+                <p class="suggestion-problem">${entry.problem}</p>
+                <p class="suggestion-outcome"><strong>Expected:</strong> ${entry.solution}</p>
+                ${entry.insight ? `<p class="suggestion-insight">${entry.insight}</p>` : ''}
+            </div>
+        `).join('')}
+    `;
+}
+
+function formatTimestamp(isoDate) {
+    if (!isoDate) return '';
+    try {
+        const date = new Date(isoDate);
+        return date.toLocaleString(undefined, {
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch (error) {
+        return '';
     }
 }
 
@@ -461,15 +613,41 @@ function attachFunctionalGroup(atom, groupType, mol) {
     }
 }
 
-function handleMouseDown(e, mol) {
+function handleMouseDown(e, mol, rend) {
     const rect = e.target.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
-    const atom = mol.getAtomAtPosition(x, y, 20);
-    if (atom) {
+
+    const clickedAtom = mol.getAtomAtPosition(x, y, 20);
+
+    if (currentTool === 'chain') {
+        chainDrawingState = smartDrawing.startChainDrawing(x, y, mol);
+        showChainPopup(chainDrawingState.totalCarbons);
+        updateMoleculeProperties();
+        rend?.render(mol);
+        return;
+    }
+
+    if (currentTool === 'bond') {
+        if (clickedAtom) {
+            drawingBond = true;
+            bondStartAtom = clickedAtom;
+            autoBondStart = false;
+        } else {
+            const startAtom = mol.addAtom('C', x, y);
+            drawingBond = true;
+            bondStartAtom = startAtom;
+            autoBondStart = true;
+            updateMoleculeProperties();
+            rend?.render(mol);
+        }
+        return;
+    }
+
+    if (clickedAtom) {
         drawingBond = true;
-        bondStartAtom = atom;
+        bondStartAtom = clickedAtom;
+        autoBondStart = false;
     }
 }
 
@@ -477,12 +655,26 @@ function handleMouseMove(e, mol, rend) {
     const rect = e.target.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
+
+    if (chainDrawingState) {
+        const result = smartDrawing.continueChainDrawing(chainDrawingState, x, y, mol);
+        chainDrawingState = result.state;
+        showChainPopup(chainDrawingState.totalCarbons);
+        updateChainPopup(chainDrawingState.totalCarbons);
+
+        if (result.addedAtom) {
+            updateMoleculeProperties();
+            rend?.render(mol);
+        }
+
+        return;
+    }
+
     // Update ghost preview position
     if (currentTool === 'atom' && smartDrawing.showGhostPreview) {
         ghostX = x;
         ghostY = y;
-        
+
         // Check if hovering over an atom
         hoverAtom = mol.getAtomAtPosition(x, y, 20);
         
@@ -538,23 +730,43 @@ function handleMouseMove(e, mol, rend) {
 }
 
 function handleMouseUp(e, mol, rend) {
-    if (!drawingBond) return;
-    
     const rect = e.target.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
-    
-    const endAtom = mol.getAtomAtPosition(x, y, 20);
+
+    if (chainDrawingState) {
+        hideChainPopup();
+        chainDrawingState = null;
+        updateMoleculeProperties();
+        rend?.render(mol);
+        return;
+    }
+
+    if (!drawingBond || !bondStartAtom) {
+        drawingBond = false;
+        autoBondStart = false;
+        return;
+    }
+
+    let endAtom = mol.getAtomAtPosition(x, y, 20);
+    if (!endAtom && currentTool === 'bond') {
+        const predicted = smartDrawing.predictNextPosition(bondStartAtom, mol, x, y);
+        endAtom = mol.addAtom('C', predicted.x, predicted.y);
+    }
+
     if (endAtom && endAtom !== bondStartAtom) {
         mol.addBond(bondStartAtom.id, endAtom.id, currentBondOrder);
         mol.updateAtomProperties(bondStartAtom);
         mol.updateAtomProperties(endAtom);
+    } else if (autoBondStart) {
+        mol.removeAtom(bondStartAtom.id);
     }
-    
+
     drawingBond = false;
     bondStartAtom = null;
+    autoBondStart = false;
     updateMoleculeProperties();
-    rend.render(mol);
+    rend?.render(mol);
 }
 
 // ==================== MOLECULE PROPERTIES ====================
@@ -690,14 +902,16 @@ function moveToSimulation() {
         alert('Please draw a molecule first!');
         return;
     }
-    
-    // Copy molecule to reactant
-    reactantMolecule = JSON.parse(JSON.stringify(molecule));
-    reactantMolecule = Object.assign(new Molecule(), reactantMolecule);
-    
+
+    // Copy and center molecule for reactant panel
+    reactantMolecule = molecule.clone();
+    if (reactantRenderer) {
+        reactantMolecule.fitToCanvas(reactantRenderer.canvas.width, reactantRenderer.canvas.height);
+        reactantRenderer.render(reactantMolecule);
+    }
+
     // Switch to simulate tab
     switchTab('simulate');
-    setTimeout(() => reactantRenderer.render(reactantMolecule), 100);
 }
 
 function setupReagentDropdowns() {
@@ -757,15 +971,7 @@ function setupReagentDropdowns() {
     
     const useInReactionBtn = document.getElementById('use-in-reaction');
     if (useInReactionBtn) {
-        useInReactionBtn.addEventListener('click', () => {
-            switchTab('simulate');
-            // Copy drawn molecule to reactant canvas
-            if (molecule.atoms.length > 0) {
-                reactantMolecule = JSON.parse(JSON.stringify(molecule));
-                reactantMolecule = Object.assign(new Molecule(), reactantMolecule);
-                reactantRenderer.render(reactantMolecule);
-            }
-        });
+        useInReactionBtn.addEventListener('click', moveToSimulation);
     }
 }
 
@@ -779,6 +985,7 @@ function showReagentInfo() {
         infoCard.style.display = 'none';
         arrowLabel.textContent = 'Add reagent';
         predictBtn.disabled = true;
+        updateLearningSuggestions(null);
         return;
     }
     
@@ -794,6 +1001,7 @@ function showReagentInfo() {
     
     infoCard.style.display = 'block';
     arrowLabel.textContent = reagentKey;
+    updateLearningSuggestions(reagentKey);
     
     if (savedReactants.length > 0) {
         predictBtn.disabled = false;
@@ -809,8 +1017,9 @@ function saveReactant() {
     const formula = reactantMolecule.getMolecularFormula();
     const name = getIUPACName ? getIUPACName(reactantMolecule) : formula;
     
+    const storedMolecule = reactantMolecule.clone();
     savedReactants.push({
-        molecule: JSON.parse(JSON.stringify(reactantMolecule)),
+        molecule: storedMolecule,
         formula: formula,
         name: name
     });
@@ -850,9 +1059,9 @@ function predictProduct() {
     }
     
     // Use the drawn reactant or the first saved reactant
-    const reactant = reactantMolecule.atoms.length > 0 ? reactantMolecule : 
+    const reactant = reactantMolecule.atoms.length > 0 ? reactantMolecule :
                      (savedReactants.length > 0 ? savedReactants[0].molecule : null);
-    
+
     if (!reactant) {
         alert('No reactant molecule found!');
         return;
@@ -891,8 +1100,11 @@ function predictProduct() {
     
     // If we have a predicted product, display it
     if (predictedProduct) {
-        productMolecule = Object.assign(new Molecule(), predictedProduct);
-        productRenderer.render(productMolecule);
+        productMolecule = predictedProduct;
+        if (productRenderer) {
+            productMolecule.fitToCanvas(productRenderer.canvas.width, productRenderer.canvas.height);
+            productRenderer.render(productMolecule);
+        }
         alert('Product predicted! Check the right panel.');
     } else {
         // Fallback: let user draw manually
@@ -901,32 +1113,53 @@ function predictProduct() {
 }
 
 function applyReactionRules(reactant, reaction) {
-    // Simplified product prediction - in a full implementation, this would:
-    // 1. Analyze functional groups in reactant
-    // 2. Apply transformation rules from reaction.rules
-    // 3. Handle stereochemistry
-    // 4. Return modified molecule
-    
-    // For now, return a copy of reactant with modifications
-    const product = JSON.parse(JSON.stringify(reactant));
-    
-    // Basic transformation based on reaction type
-    if (reaction.type === 'oxidation') {
-        // Example: Convert alcohol to carbonyl
-        product.atoms.forEach(atom => {
-            if (atom.element === 'O' && atom.bonds === 1) {
-                atom.bonds = 2; // Single to double bond
-            }
-        });
-    } else if (reaction.type === 'reduction') {
-        // Example: Convert carbonyl to alcohol
-        product.atoms.forEach(atom => {
-            if (atom.element === 'O' && atom.bonds === 2) {
-                atom.bonds = 1; // Double to single bond
-            }
-        });
+    if (!reactant || !reaction) {
+        return null;
     }
-    
+
+    const product = reactant instanceof Molecule
+        ? reactant.clone()
+        : (() => {
+            const mol = new Molecule();
+            mol.fromJSON(reactant);
+            return mol;
+        })();
+
+    switch (reaction.type) {
+        case 'oxidation':
+            product.bonds.forEach(bond => {
+                const atom1 = product.getAtomById(bond.atom1);
+                const atom2 = product.getAtomById(bond.atom2);
+                if (!atom1 || !atom2) return;
+
+                const isCO = (atom1.element === 'C' && atom2.element === 'O') ||
+                             (atom1.element === 'O' && atom2.element === 'C');
+
+                if (isCO && bond.order === 1) {
+                    bond.order = 2;
+                }
+            });
+            break;
+
+        case 'reduction':
+            product.bonds.forEach(bond => {
+                const atom1 = product.getAtomById(bond.atom1);
+                const atom2 = product.getAtomById(bond.atom2);
+                if (!atom1 || !atom2) return;
+
+                const isCO = (atom1.element === 'C' && atom2.element === 'O') ||
+                             (atom1.element === 'O' && atom2.element === 'C');
+
+                if (isCO && bond.order === 2) {
+                    bond.order = 1;
+                }
+            });
+            break;
+        default:
+            break;
+    }
+
+    product.atoms.forEach(atom => product.updateAtomProperties(atom));
     return product;
 }
 
@@ -947,10 +1180,11 @@ function resetReaction() {
     updateReactantsList();
     reactantRenderer.render(reactantMolecule);
     productRenderer.render(productMolecule);
-    
+
     document.getElementById('reagent-select').value = '';
     document.getElementById('reagent-info-card').style.display = 'none';
     document.getElementById('export-section').style.display = 'none';
+    updateLearningSuggestions(null);
 }
 
 // ==================== MECHANISMS TAB ====================

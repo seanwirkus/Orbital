@@ -7,7 +7,8 @@ class SmartDrawingTool {
         this.snapAngles = true;
         this.showGhostPreview = true;
         this.ghostAtom = null;
-        
+        this.chainPlacementThreshold = this.bondLength * 0.7;
+
         // Drawing state
         this.currentTool = 'atom'; // 'atom', 'bond', 'chain', 'ring', 'template'
         this.currentBondOrder = 1;
@@ -200,22 +201,34 @@ class SmartDrawingTool {
     
     // Chain drawing tool - click and drag to draw continuous chain
     startChainDrawing(startX, startY, molecule) {
+        const firstAtom = molecule.addAtom('C', startX, startY);
         return {
-            lastAtom: molecule.addAtom('C', startX, startY),
-            atoms: [],
-            bonds: []
+            atoms: [firstAtom],
+            lastAtom: firstAtom,
+            lastPointer: { x: startX, y: startY },
+            totalCarbons: 1
         };
     }
-    
+
     continueChainDrawing(chainState, x, y, molecule) {
+        const dx = x - chainState.lastPointer.x;
+        const dy = y - chainState.lastPointer.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        if (distance < this.chainPlacementThreshold) {
+            return { state: chainState, addedAtom: false };
+        }
+
         const predicted = this.predictNextPosition(chainState.lastAtom, molecule, x, y);
         const newAtom = molecule.addAtom('C', predicted.x, predicted.y);
         molecule.addBond(chainState.lastAtom.id, newAtom.id, 1);
-        
+
         chainState.atoms.push(newAtom);
         chainState.lastAtom = newAtom;
-        
-        return chainState;
+        chainState.lastPointer = { x: predicted.x, y: predicted.y };
+        chainState.totalCarbons += 1;
+
+        return { state: chainState, addedAtom: true };
     }
     
     // Template insertion
