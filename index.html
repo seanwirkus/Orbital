@@ -316,8 +316,39 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="learning-panel">
+                            <div class="learning-header">
+                                <h3>🧠 Learning Notebook</h3>
+                                <p>Capture custom reaction challenges so Orbital can learn alongside you.</p>
+                            </div>
+
+                            <form id="learning-form" class="learning-form">
+                                <label for="learning-problem">Problem prompt</label>
+                                <textarea id="learning-problem" placeholder="Describe the reaction scenario or exam-style question" required></textarea>
+
+                                <div class="learning-grid">
+                                    <div class="learning-field">
+                                        <label for="learning-reagent">Key reagents (optional)</label>
+                                        <input type="text" id="learning-reagent" placeholder="e.g., Br₂, hv, peroxide">
+                                    </div>
+                                    <div class="learning-field">
+                                        <label for="learning-solution">Expected outcome</label>
+                                        <textarea id="learning-solution" placeholder="Summarize the product or transformation" required></textarea>
+                                    </div>
+                                </div>
+
+                                <label for="learning-insight">Key insight / takeaway</label>
+                                <textarea id="learning-insight" placeholder="What principle should Orbital remember?"></textarea>
+
+                                <button type="submit" class="learning-save-btn">💾 Save to notebook</button>
+                            </form>
+
+                            <div id="learning-suggestions" class="learning-suggestions"></div>
+                            <div id="learning-entries" class="learning-entries"></div>
+                        </div>
                     </div>
-                    
+
                     <!-- MECHANISMS TAB -->
                     <div id="mechanisms-tab" class="tab-pane">
                         <div class="mechanisms-layout">
@@ -411,6 +442,7 @@
     <script src="src/js/reactions-database.js"></script>
     <script src="src/js/mechanism-renderer.js"></script>
     <script src="src/js/renderer.js"></script>
+    <script src="src/js/learning-manager.js"></script>
     <script src="src/js/main.js"></script>
 </body>
 </html>

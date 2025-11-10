@@ -10,17 +10,75 @@ class Molecule {
         this.nextBondId = 0;
     }
 
+    // Internal helper to keep legacy atom.x / atom.y access in sync with atom.position
+    attachCoordinateAccessors(atom) {
+        if (!atom.position) {
+            atom.position = { x: atom.x || 0, y: atom.y || 0 };
+        }
+
+        if (!Object.getOwnPropertyDescriptor(atom, 'x')) {
+            Object.defineProperty(atom, 'x', {
+                get() { return this.position.x; },
+                set(value) { this.position.x = value; },
+                configurable: true,
+                enumerable: true
+            });
+        }
+
+        if (!Object.getOwnPropertyDescriptor(atom, 'y')) {
+            Object.defineProperty(atom, 'y', {
+                get() { return this.position.y; },
+                set(value) { this.position.y = value; },
+                configurable: true,
+                enumerable: true
+            });
+        }
+
+        return atom;
+    }
+
+    hydrateAtom(data) {
+        const atomId = data.id ?? `atom_${this.nextAtomId++}`;
+        const hydrated = {
+            id: atomId,
+            element: data.element,
+            position: {
+                x: data.position && typeof data.position.x === 'number'
+                    ? data.position.x
+                    : (typeof data.x === 'number' ? data.x : 0),
+                y: data.position && typeof data.position.y === 'number'
+                    ? data.position.y
+                    : (typeof data.y === 'number' ? data.y : 0)
+            },
+            charge: data.charge || 0,
+            bonds: [],
+            hybridization: data.hybridization || null,
+            valenceValid: data.valenceValid !== undefined ? data.valenceValid : true
+        };
+
+        this.attachCoordinateAccessors(hydrated);
+
+        if (atomId && typeof atomId === 'string' && atomId.startsWith('atom_')) {
+            const numeric = parseInt(atomId.split('_')[1], 10);
+            if (!Number.isNaN(numeric)) {
+                this.nextAtomId = Math.max(this.nextAtomId, numeric + 1);
+            }
+        }
+
+        return hydrated;
+    }
+
     // Add an atom to the molecule
     addAtom(element, x, y) {
-        const atom = {
+        const atom = this.attachCoordinateAccessors({
             id: `atom_${this.nextAtomId++}`,
             element: element,
             position: { x, y },
             charge: 0,
             bonds: [],
             hybridization: null
-        };
-        
+        });
+
         this.atoms.push(atom);
         this.updateAtomProperties(atom);
         return atom;
@@ -77,11 +135,11 @@ class Molecule {
         this.bonds.push(bond);
         atom1.bonds.push(bond.id);
         atom2.bonds.push(bond.id);
-        
+
         // Update properties for both atoms
         this.updateAtomProperties(atom1);
         this.updateAtomProperties(atom2);
-        
+
         return bond;
     }
 
@@ -106,6 +164,81 @@ class Molecule {
         
         // Remove bond from list
         this.bonds = this.bonds.filter(b => b.id !== bondId);
+    }
+
+    clone() {
+        const clone = new Molecule();
+        const idMap = new Map();
+
+        this.atoms.forEach(atom => {
+            const newAtom = clone.addAtom(atom.element, atom.position.x, atom.position.y);
+            idMap.set(atom.id, newAtom.id);
+            newAtom.charge = atom.charge;
+            newAtom.hybridization = atom.hybridization;
+            newAtom.valenceValid = atom.valenceValid;
+        });
+
+        this.bonds.forEach(bond => {
+            const atom1 = idMap.get(bond.atom1);
+            const atom2 = idMap.get(bond.atom2);
+            if (!atom1 || !atom2) return;
+            const newBond = clone.addBond(atom1, atom2, bond.order);
+            if (newBond) {
+                newBond.polarity = bond.polarity;
+            }
+        });
+
+        return clone;
+    }
+
+    getBoundingBox() {
+        if (this.atoms.length === 0) return null;
+
+        let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+
+        this.atoms.forEach(atom => {
+            minX = Math.min(minX, atom.position.x);
+            maxX = Math.max(maxX, atom.position.x);
+            minY = Math.min(minY, atom.position.y);
+            maxY = Math.max(maxY, atom.position.y);
+        });
+
+        const width = maxX - minX || 1;
+        const height = maxY - minY || 1;
+
+        return {
+            minX,
+            maxX,
+            minY,
+            maxY,
+            width,
+            height,
+            centerX: minX + width / 2,
+            centerY: minY + height / 2
+        };
+    }
+
+    fitToCanvas(width, height, padding = 80) {
+        if (this.atoms.length === 0) return;
+
+        const bounds = this.getBoundingBox();
+        if (!bounds) return;
+
+        const availableWidth = Math.max(1, width - padding * 2);
+        const availableHeight = Math.max(1, height - padding * 2);
+        const scale = Math.min(
+            availableWidth / Math.max(bounds.width, 1),
+            availableHeight / Math.max(bounds.height, 1)
+        );
+
+        const safeScale = Number.isFinite(scale) ? Math.min(Math.max(scale, 0.4), 2.5) : 1;
+
+        this.atoms.forEach(atom => {
+            const shiftedX = atom.position.x - bounds.centerX;
+            const shiftedY = atom.position.y - bounds.centerY;
+            atom.position.x = shiftedX * safeScale + width / 2;
+            atom.position.y = shiftedY * safeScale + height / 2;
+        });
     }
 
     // Change bond order
@@ -440,6 +573,8 @@ class Molecule {
         this.bonds = [];
         this.selectedAtom = null;
         this.selectedBond = null;
+        this.nextAtomId = 0;
+        this.nextBondId = 0;
     }
 
     // Export molecule as JSON
@@ -453,10 +588,26 @@ class Molecule {
     // Import molecule from JSON
     fromJSON(data) {
         this.clear();
-        this.atoms = data.atoms || [];
-        this.bonds = data.bonds || [];
-        
-        // Update atom properties
+
+        if (!data) return;
+
+        const atomIdMap = new Map();
+
+        (data.atoms || []).forEach(atomData => {
+            const hydrated = this.hydrateAtom(atomData);
+            this.atoms.push(hydrated);
+            atomIdMap.set(atomData.id, hydrated.id);
+        });
+
+        (data.bonds || []).forEach(bondData => {
+            const atom1 = atomIdMap.get(bondData.atom1) || bondData.atom1;
+            const atom2 = atomIdMap.get(bondData.atom2) || bondData.atom2;
+            const bond = this.addBond(atom1, atom2, bondData.order || 1);
+            if (bond && bondData.polarity) {
+                bond.polarity = bondData.polarity;
+            }
+        });
+
         this.atoms.forEach(atom => this.updateAtomProperties(atom));
     }
 }
