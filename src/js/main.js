@@ -9,9 +9,27 @@ let reactantRenderer;
 let productRenderer;
 let mechanismRenderer = null;
 
+// Smart drawing system
+let smartDrawing = null;
+let chemIntelligence = null;
+let ghostPreviewActive = false;
+let ghostX = 0;
+let ghostY = 0;
+let ghostElement = 'C';
+let selectedAtom = null;
+let hoverAtom = null;
+
+// Display options
+let showImplicitHydrogens = true;
+let showAromaticCircles = true;
+let showLonePairs = false;
+let showValenceErrors = true;
+let showChiralCenters = false;
+
 let currentElement = 'C';
 let currentBondOrder = 1;
 let currentTab = 'draw';
+let currentTool = 'atom'; // 'atom', 'bond', 'chain', 'erase', 'template'
 let savedReactants = [];
 let currentReagent = null;
 let currentCondition = null;
@@ -25,6 +43,14 @@ function initializeApp() {
     console.log('🚀 Initializing Orbital App...');
     
     try {
+        // Initialize smart drawing system
+        smartDrawing = new SmartDrawingTool();
+        console.log('✓ Smart drawing system initialized');
+        
+        // Initialize chemistry intelligence
+        chemIntelligence = new ChemistryIntelligence();
+        console.log('✓ Chemistry intelligence initialized');
+        
         // Initialize canvases
         const mainCanvas = document.getElementById('molecule-canvas');
         const reactantCanvas = document.getElementById('reactant-canvas');
@@ -93,28 +119,122 @@ function switchTab(tabName) {
 
 // ==================== DRAWING TOOLS ====================
 function setupDrawingTools() {
-    // Element selection
+    // Tool selection (atom, bond, chain, erase)
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+            e.currentTarget.classList.add('active');
+            currentTool = e.currentTarget.id.replace('tool-', '');
+            console.log('Tool changed to:', currentTool);
+        });
+    });
+    
+    // Element selection (sidebar)
     document.querySelectorAll('.element-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.element-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
             currentElement = e.target.dataset.element;
+            ghostElement = currentElement;
+            console.log('Element changed to:', currentElement);
         });
     });
     
-    // Bond type selection
+    // Bond type selection (toolbar)
     document.querySelectorAll('.bond-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.bond-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            currentBondOrder = parseInt(e.target.dataset.bond);
+            e.currentTarget.classList.add('active');
+            const bondId = e.currentTarget.id;
+            if (bondId === 'bond-single') currentBondOrder = 1;
+            else if (bondId === 'bond-double') currentBondOrder = 2;
+            else if (bondId === 'bond-triple') currentBondOrder = 3;
+            smartDrawing.currentBondOrder = currentBondOrder;
+            console.log('Bond order changed to:', currentBondOrder);
         });
     });
     
-    // Ring templates
-    document.getElementById('add-benzene')?.addEventListener('click', () => addBenzeneRing());
-    document.getElementById('add-cyclohexane')?.addEventListener('click', () => addCyclohexane());
-    document.getElementById('add-cyclopentane')?.addEventListener('click', () => addCyclopentane());
+    // Template buttons
+    document.getElementById('template-benzene')?.addEventListener('click', () => {
+        currentTool = 'template';
+        currentTemplate = 'benzene';
+        console.log('Benzene template selected - click canvas to place');
+    });
+    
+    document.getElementById('template-cyclohexane')?.addEventListener('click', () => {
+        currentTool = 'template';
+        currentTemplate = 'cyclohexane';
+        console.log('Cyclohexane template selected - click canvas to place');
+    });
+    
+    document.getElementById('template-cyclopentane')?.addEventListener('click', () => {
+        currentTool = 'template';
+        currentTemplate = 'cyclopentane';
+        console.log('Cyclopentane template selected - click canvas to place');
+    });
+    
+    // Functional group buttons
+    document.getElementById('group-oh')?.addEventListener('click', () => {
+        currentTool = 'group';
+        currentGroup = 'OH';
+        console.log('OH group selected - click on atom to attach');
+    });
+    
+    document.getElementById('group-nh2')?.addEventListener('click', () => {
+        currentTool = 'group';
+        currentGroup = 'NH2';
+        console.log('NH2 group selected - click on atom to attach');
+    });
+    
+    document.getElementById('group-cooh')?.addEventListener('click', () => {
+        currentTool = 'group';
+        currentGroup = 'COOH';
+        console.log('COOH group selected - click on atom to attach');
+    });
+    
+    document.getElementById('group-cho')?.addEventListener('click', () => {
+        currentTool = 'group';
+        currentGroup = 'CHO';
+        console.log('CHO group selected - click on atom to attach');
+    });
+    
+    // Option toggles
+    document.getElementById('option-snap')?.addEventListener('click', (e) => {
+        smartDrawing.snapAngles = !smartDrawing.snapAngles;
+        e.currentTarget.classList.toggle('active');
+        console.log('Angle snapping:', smartDrawing.snapAngles);
+    });
+    
+    document.getElementById('option-preview')?.addEventListener('click', (e) => {
+        smartDrawing.showGhostPreview = !smartDrawing.showGhostPreview;
+        e.currentTarget.classList.toggle('active');
+        console.log('Ghost preview:', smartDrawing.showGhostPreview);
+    });
+    
+    // Legacy ring templates (old buttons)
+    document.getElementById('add-benzene')?.addEventListener('click', () => {
+        const centerX = 400;
+        const centerY = 300;
+        smartDrawing.insertTemplate(smartDrawing.templates.benzene, centerX, centerY, molecule);
+        updateMoleculeProperties();
+        renderer.render(molecule);
+    });
+    
+    document.getElementById('add-cyclohexane')?.addEventListener('click', () => {
+        const centerX = 400;
+        const centerY = 300;
+        smartDrawing.insertTemplate(smartDrawing.templates.cyclohexane, centerX, centerY, molecule);
+        updateMoleculeProperties();
+        renderer.render(molecule);
+    });
+    
+    document.getElementById('add-cyclopentane')?.addEventListener('click', () => {
+        const centerX = 400;
+        const centerY = 300;
+        smartDrawing.insertTemplate(smartDrawing.templates.cyclopentane, centerX, centerY, molecule);
+        updateMoleculeProperties();
+        renderer.render(molecule);
+    });
     
     // Clear button
     document.getElementById('clear-canvas')?.addEventListener('click', () => {
@@ -125,6 +245,62 @@ function setupDrawingTools() {
     
     // Auto-organize
     document.getElementById('auto-organize')?.addEventListener('click', () => autoOrganize());
+    
+    // Display toggles
+    document.getElementById('toggle-implicit-h')?.addEventListener('change', (e) => {
+        showImplicitHydrogens = e.target.checked;
+        renderer.render(molecule);
+    });
+    
+    document.getElementById('toggle-aromatic')?.addEventListener('change', (e) => {
+        showAromaticCircles = e.target.checked;
+        renderer.render(molecule);
+    });
+    
+    document.getElementById('toggle-valence-errors')?.addEventListener('change', (e) => {
+        showValenceErrors = e.target.checked;
+        renderer.render(molecule);
+    });
+    
+    document.getElementById('toggle-chiral')?.addEventListener('change', (e) => {
+        showChiralCenters = e.target.checked;
+        renderer.render(molecule);
+    });
+    
+    document.getElementById('add-explicit-h')?.addEventListener('click', () => {
+        chemIntelligence.addExplicitHydrogens(molecule);
+        updateMoleculeProperties();
+        renderer.render(molecule);
+    });
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (currentTab !== 'draw') return;
+        
+        switch(e.key.toLowerCase()) {
+            case 'a': // Atom tool
+                document.getElementById('tool-atom')?.click();
+                break;
+            case 'b': // Bond tool
+                document.getElementById('tool-bond')?.click();
+                break;
+            case 'c': // Chain tool
+                document.getElementById('tool-chain')?.click();
+                break;
+            case 'e': // Erase tool
+                document.getElementById('tool-erase')?.click();
+                break;
+            case 'delete':
+            case 'backspace':
+                if (selectedAtom) {
+                    molecule.removeAtom(selectedAtom.id);
+                    selectedAtom = null;
+                    updateMoleculeProperties();
+                    renderer.render(molecule);
+                }
+                break;
+        }
+    });
 }
 
 function setupCanvasEvents() {
@@ -161,59 +337,127 @@ let drawingBond = false;
 let bondStartAtom = null;
 
 function handleCanvasClick(e, mol, rend) {
-    console.log('🖱️ Canvas clicked!', { element: currentElement, bondOrder: currentBondOrder });
+    console.log('🖱️ Canvas clicked!', { tool: currentTool, element: currentElement });
     
     const rect = e.target.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
-    console.log('Click position:', { x, y });
-    
-    // Check if clicking on existing atom
     const clickedAtom = mol.getAtomAtPosition(x, y, 20);
     
-    if (!clickedAtom) {
-        // Place new atom FIRST - this ensures it always appears
-        console.log('Placing new atom:', currentElement);
-        const atom = mol.addAtom(currentElement, x, y);
-        console.log('Atom added:', atom);
-        
-        // Immediately render so atom appears
-        if (mol.updateAtomProperties) {
-            try {
-                mol.updateAtomProperties(atom);
-            } catch (e) {
-                console.warn('Could not update atom properties:', e);
-            }
-        }
-        
-        // Render immediately to show the atom
-        updateMoleculeProperties();
-        rend.render(mol);
-        
-        // THEN try to auto-connect (but don't let errors block rendering)
-        if (currentElement === 'C') {
-            try {
-                const nearby = mol.getNearbyAtoms(x, y, 80);
-                let bonded = 0;
-                nearby.forEach(nearAtom => {
-                    if (nearAtom.element === 'C' && bonded < 2) {
-                        const existingBonds = mol.getAtomBonds(nearAtom.id);
-                        if (existingBonds.length < 4) {
-                            mol.addBond(atom.id, nearAtom.id, 1);
-                            bonded++;
-                        }
-                    }
-                });
-                
-                // Re-render if bonds were added
-                if (bonded > 0) {
+    // Handle different tools
+    switch(currentTool) {
+        case 'atom':
+            handleAtomTool(x, y, clickedAtom, mol, rend);
+            break;
+            
+        case 'bond':
+            if (clickedAtom) {
+                if (!bondStartAtom) {
+                    bondStartAtom = clickedAtom;
+                    console.log('Bond start:', bondStartAtom.id);
+                } else if (bondStartAtom !== clickedAtom) {
+                    mol.addBond(bondStartAtom.id, clickedAtom.id, currentBondOrder);
+                    bondStartAtom = null;
+                    updateMoleculeProperties();
                     rend.render(mol);
+                    console.log('Bond created');
                 }
-            } catch (autoConnectError) {
-                console.warn('Auto-connect failed (atom still placed):', autoConnectError);
             }
+            break;
+            
+        case 'erase':
+            if (clickedAtom) {
+                mol.removeAtom(clickedAtom.id);
+                updateMoleculeProperties();
+                rend.render(mol);
+                console.log('Atom removed');
+            }
+            break;
+            
+        case 'template':
+            if (typeof currentTemplate !== 'undefined') {
+                const template = smartDrawing.templates[currentTemplate];
+                if (template) {
+                    smartDrawing.insertTemplate(template, x, y, mol);
+                    updateMoleculeProperties();
+                    rend.render(mol);
+                    console.log('Template inserted:', currentTemplate);
+                }
+                currentTool = 'atom'; // Reset to atom tool
+                document.getElementById('tool-atom')?.click();
+            }
+            break;
+            
+        case 'group':
+            if (clickedAtom && typeof currentGroup !== 'undefined') {
+                attachFunctionalGroup(clickedAtom, currentGroup, mol);
+                updateMoleculeProperties();
+                rend.render(mol);
+                console.log('Group attached:', currentGroup);
+                currentTool = 'atom'; // Reset to atom tool
+                document.getElementById('tool-atom')?.click();
+            }
+            break;
+    }
+}
+
+function handleAtomTool(x, y, clickedAtom, mol, rend) {
+    if (clickedAtom) {
+        // Clicked on existing atom - use smart placement
+        const predicted = smartDrawing.predictNextPosition(clickedAtom, mol, x, y);
+        const newAtom = mol.addAtom(currentElement, predicted.x, predicted.y);
+        mol.addBond(clickedAtom.id, newAtom.id, currentBondOrder);
+        console.log('Smart atom placed and connected');
+        
+        // Auto-calculate formal charges
+        clickedAtom.charge = chemIntelligence.calculateFormalCharge(clickedAtom, mol);
+        newAtom.charge = chemIntelligence.calculateFormalCharge(newAtom, mol);
+    } else {
+        // Empty space - place atom
+        const newAtom = mol.addAtom(currentElement, x, y);
+        console.log('Atom placed:', newAtom.id);
+    }
+    
+    // Validate molecule and show errors
+    if (showValenceErrors) {
+        const errors = chemIntelligence.validateMolecule(mol);
+        if (errors.length > 0) {
+            console.warn('Valence errors detected:', errors);
         }
+    }
+    
+    updateMoleculeProperties();
+    rend.render(mol);
+}
+
+function attachFunctionalGroup(atom, groupType, mol) {
+    switch(groupType) {
+        case 'OH':
+            const oh = mol.addAtom('O', atom.x + 40, atom.y - 30);
+            mol.addBond(atom.id, oh.id, 1);
+            break;
+            
+        case 'NH2':
+            const nh = mol.addAtom('N', atom.x + 40, atom.y - 30);
+            mol.addBond(atom.id, nh.id, 1);
+            break;
+            
+        case 'COOH':
+            const c = mol.addAtom('C', atom.x + 40, atom.y);
+            mol.addBond(atom.id, c.id, 1);
+            const o1 = mol.addAtom('O', atom.x + 60, atom.y - 30);
+            mol.addBond(c.id, o1.id, 2);
+            const o2 = mol.addAtom('O', atom.x + 60, atom.y + 30);
+            mol.addBond(c.id, o2.id, 1);
+            break;
+            
+        case 'CHO':
+            const cald = mol.addAtom('C', atom.x + 40, atom.y);
+            mol.addBond(atom.id, cald.id, 1);
+            const oald = mol.addAtom('O', atom.x + 60, atom.y - 30);
+            mol.addBond(cald.id, oald.id, 2);
+            break;
     }
 }
 
@@ -230,9 +474,67 @@ function handleMouseDown(e, mol) {
 }
 
 function handleMouseMove(e, mol, rend) {
-    if (!drawingBond) return;
+    const rect = e.target.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     
-    // Visual feedback could be added here
+    // Update ghost preview position
+    if (currentTool === 'atom' && smartDrawing.showGhostPreview) {
+        ghostX = x;
+        ghostY = y;
+        
+        // Check if hovering over an atom
+        hoverAtom = mol.getAtomAtPosition(x, y, 20);
+        
+        if (hoverAtom) {
+            // Predict smart position
+            const predicted = smartDrawing.predictNextPosition(hoverAtom, mol, x, y);
+            ghostX = predicted.x;
+            ghostY = predicted.y;
+            ghostPreviewActive = true;
+        } else {
+            ghostPreviewActive = false;
+        }
+        
+        // Render with ghost preview
+        rend.render(mol);
+        const ctx = e.target.getContext('2d');
+        
+        if (hoverAtom) {
+            // Draw angle guides
+            const bonds = mol.getAtomBonds(hoverAtom.id);
+            const existingAngles = bonds.map(bond => {
+                const otherAtom = mol.getAtomById(
+                    bond.atom1 === hoverAtom.id ? bond.atom2 : bond.atom1
+                );
+                return Math.atan2(otherAtom.y - hoverAtom.y, otherAtom.x - hoverAtom.x);
+            });
+            
+            const bondCount = bonds.length;
+            const hybridization = bondCount === 0 ? 'sp3' : bondCount === 1 ? 'sp3' : 'sp2';
+            smartDrawing.drawAngleGuides(ctx, hoverAtom, existingAngles, hybridization);
+        }
+        
+        // Draw ghost atom
+        smartDrawing.drawGhostPreview(ctx, ghostX, ghostY, ghostElement);
+    }
+    
+    // Handle bond drawing
+    if (drawingBond && bondStartAtom) {
+        rend.render(mol);
+        const ctx = e.target.getContext('2d');
+        
+        // Draw temporary bond line
+        ctx.save();
+        ctx.strokeStyle = '#667eea';
+        ctx.lineWidth = 3;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(bondStartAtom.x, bondStartAtom.y);
+        ctx.lineTo(x, y);
+        ctx.stroke();
+        ctx.restore();
+    }
 }
 
 function handleMouseUp(e, mol, rend) {

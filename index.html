@@ -61,6 +61,28 @@
                     <button class="action-btn" id="auto-organize">🪄 Organize</button>
                     <button class="action-btn" id="clear-canvas">🗑️ Clear</button>
                 </div>
+                
+                <!-- Display Options -->
+                <div class="tool-section">
+                    <h4>Display</h4>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="toggle-implicit-h" checked>
+                        <span>Implicit H Count</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="toggle-aromatic" checked>
+                        <span>Aromatic Circles</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="toggle-valence-errors" checked>
+                        <span>Valence Errors</span>
+                    </label>
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="toggle-chiral">
+                        <span>Chiral Centers</span>
+                    </label>
+                    <button class="action-btn" id="add-explicit-h">➕ Show All H</button>
+                </div>
             </aside>
 
             <!-- Main Work Area with Tabs -->
@@ -82,11 +104,72 @@
                 <div class="tab-content-container">
                     <!-- DRAW TAB -->
                     <div id="draw-tab" class="tab-pane active">
+                        <!-- Professional Drawing Toolbar -->
+                        <div class="drawing-toolbar">
+                            <div class="toolbar-section">
+                                <label>Tools:</label>
+                                <button class="tool-btn active" id="tool-atom" title="Place Atoms (A)">
+                                    <span class="tool-icon">⚛️</span>
+                                    Atom
+                                </button>
+                                <button class="tool-btn" id="tool-bond" title="Draw Bonds (B)">
+                                    <span class="tool-icon">━</span>
+                                    Bond
+                                </button>
+                                <button class="tool-btn" id="tool-chain" title="Chain Drawing (C)">
+                                    <span class="tool-icon">〰️</span>
+                                    Chain
+                                </button>
+                                <button class="tool-btn" id="tool-erase" title="Eraser (E)">
+                                    <span class="tool-icon">🗑️</span>
+                                    Erase
+                                </button>
+                            </div>
+                            
+                            <div class="toolbar-section">
+                                <label>Bond Type:</label>
+                                <button class="bond-btn active" id="bond-single" title="Single Bond">━</button>
+                                <button class="bond-btn" id="bond-double" title="Double Bond">═</button>
+                                <button class="bond-btn" id="bond-triple" title="Triple Bond">≡</button>
+                            </div>
+                            
+                            <div class="toolbar-section">
+                                <label>Templates:</label>
+                                <button class="template-btn" id="template-benzene" title="Benzene Ring">
+                                    ⬡
+                                </button>
+                                <button class="template-btn" id="template-cyclohexane" title="Cyclohexane">
+                                    ⬢
+                                </button>
+                                <button class="template-btn" id="template-cyclopentane" title="Cyclopentane">
+                                    ⬟
+                                </button>
+                            </div>
+                            
+                            <div class="toolbar-section">
+                                <label>Groups:</label>
+                                <button class="group-btn" id="group-oh" title="Hydroxyl">OH</button>
+                                <button class="group-btn" id="group-nh2" title="Amino">NH₂</button>
+                                <button class="group-btn" id="group-cooh" title="Carboxyl">COOH</button>
+                                <button class="group-btn" id="group-cho" title="Aldehyde">CHO</button>
+                            </div>
+                            
+                            <div class="toolbar-section">
+                                <label>Options:</label>
+                                <button class="option-btn active" id="option-snap" title="Snap to Angles">
+                                    <span class="tool-icon">📐</span>
+                                </button>
+                                <button class="option-btn active" id="option-preview" title="Ghost Preview">
+                                    <span class="tool-icon">👻</span>
+                                </button>
+                            </div>
+                        </div>
+                        
                         <div class="draw-layout">
                             <div class="canvas-section">
                                 <canvas id="molecule-canvas" width="800" height="600"></canvas>
                                 <div class="canvas-hint">
-                                    <p>💡 Click to place atoms • Drag between atoms to create bonds</p>
+                                    <p>💡 Click to place atoms • Drag between atoms to create bonds • Use templates for common structures</p>
                                 </div>
                             </div>
                             <div class="properties-sidebar">
@@ -319,6 +402,9 @@
     </script>
     <script src="src/js/elements.js"></script>
     <script src="src/js/geometry.js"></script>
+    <script src="src/js/chemistry-intelligence.js"></script>
+    <script src="src/js/smart-drawing.js"></script>
+    <script src="src/js/clipboard.js"></script>
     <script src="src/js/molecule.js"></script>
     <script src="src/js/naming.js"></script>
     <script src="src/js/reactions.js"></script>
