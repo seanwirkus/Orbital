@@ -1,8 +1,26 @@
-# Organic Chemistry Visualizer and Simulator
+# Orbital - Organic Chemistry Visualizer and Simulator
 
 ## Project Overview
 
 This is a **fully functional** interactive web-based application for visualizing and simulating organic chemistry molecules with **real reaction mechanisms**. The tool allows users to draw molecular structures, explore chemical properties, run reaction simulations, and view detailed **step-by-step mechanism animations** with electron flow arrows.
+
+## 🚀 Orbital Engine Framework
+
+The core chemistry engine has been extracted into a standalone framework located in `orbital-engine/`. This framework can be used independently in other projects.
+
+### Framework Structure
+- **core/** - Core chemistry engine (molecule, renderer, intelligence)
+- **services/** - External integrations (PubChem API)
+- **utils/** - Utility classes (undo/redo, selection, clipboard)
+
+### Key Features
+- ✨ Enhanced atom drawing with VSEPR theory
+- 🔬 PubChem integration for all atoms
+- 🧪 Chemistry intelligence (valence, hybridization, aromaticity)
+- 📐 Intelligent bond angle prediction
+- ✅ Real-time validation
+
+See `orbital-engine/README.md` and `orbital-engine/INTEGRATION.md` for details.
 
 ## ✨ Key Features
 

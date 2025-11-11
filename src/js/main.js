@@ -35,6 +35,14 @@ let autoBondStart = false;
 // Learning system
 let learningManager = null;
 
+// New managers for keyboard shortcuts, selection, undo/redo, chain tool, clipboard
+let keyboardManager = null;
+let selectionManager = null;
+let undoRedoManager = null;
+let chainToolManager = null;
+let clipboardManager = null;
+let reactionUI = null;
+
 let currentElement = 'C';
 let currentBondOrder = 1;
 let currentTab = 'draw';
@@ -88,6 +96,49 @@ function initializeApp() {
             console.log('✓ Product renderer initialized');
         }
         
+        // Initialize undo/redo system
+        undoRedoManager = new UndoRedoManager(50);
+        console.log('✓ Undo/redo system initialized');
+        
+        // Initialize selection manager
+        selectionManager = new SelectionManager(molecule, renderer);
+        console.log('✓ Selection manager initialized');
+        
+        // Initialize chain tool (with undo manager for single-operation undo)
+        chainToolManager = new SmartChainTool(molecule, renderer, undoRedoManager);
+        console.log('✓ Chain tool initialized');
+        
+        // Initialize clipboard manager
+        clipboardManager = new ClipboardManager();
+        console.log('✓ Clipboard manager initialized');
+        
+        // Initialize reaction manager UI
+        if (typeof ReactionUI !== 'undefined') {
+            reactionUI = new ReactionUI('reaction-ui-container');
+            // Make molecule accessible to ReactionUI
+            if (reactionUI && reactionUI.setReaction) {
+                // Will be updated when molecule changes
+            }
+            console.log('✓ Reaction UI initialized');
+        } else {
+            console.warn('⚠️ ReactionUI not available');
+        }
+        
+        // Initialize keyboard shortcuts (with safety check)
+        if (typeof KeyboardShortcutManager !== 'undefined') {
+            keyboardManager = new KeyboardShortcutManager(
+                molecule, 
+                renderer, 
+                undoRedoManager, 
+                selectionManager, 
+                chainToolManager, 
+                clipboardManager
+            );
+            console.log('✓ Keyboard shortcuts initialized');
+        } else {
+            console.warn('⚠️ KeyboardShortcutManager not available');
+        }
+        
         // Setup event listeners
         setupDrawingTools();
         setupCanvasEvents();
@@ -126,7 +177,14 @@ function switchTab(tabName) {
     
     // Handle tab-specific initialization
     if (tabName === 'simulate') {
-        reactantRenderer.render(reactantMolecule);
+        // Update reaction UI when switching to simulate tab
+        if (molecule && molecule.atoms.length > 0) {
+            updateReactionUI();
+        }
+        // Only render if reactantRenderer exists (legacy support)
+        if (reactantRenderer && reactantMolecule) {
+            reactantRenderer.render(reactantMolecule);
+        }
     } else if (tabName === 'mechanisms' && !mechanismRenderer) {
         mechanismRenderer = new MechanismRenderer('mechanism-canvas-container');
     }
@@ -141,6 +199,13 @@ function setupDrawingTools() {
             e.currentTarget.classList.add('active');
             currentTool = e.currentTarget.id.replace('tool-', '');
             console.log('Tool changed to:', currentTool);
+            
+            // Handle chain tool activation
+            if (currentTool === 'chain' && chainToolManager) {
+                chainToolManager.startChainMode();
+            } else if (chainToolManager) {
+                chainToolManager.stopChainMode();
+            }
         });
     });
     
@@ -155,16 +220,28 @@ function setupDrawingTools() {
         });
     });
     
-    // Bond type selection (toolbar)
+    // Bond type selection (both sidebar and toolbar)
     document.querySelectorAll('.bond-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
+            // Update all bond buttons (sidebar and toolbar)
             document.querySelectorAll('.bond-btn').forEach(b => b.classList.remove('active'));
             e.currentTarget.classList.add('active');
+            
+            // Determine bond order from button
             const bondId = e.currentTarget.id;
-            if (bondId === 'bond-single') currentBondOrder = 1;
-            else if (bondId === 'bond-double') currentBondOrder = 2;
-            else if (bondId === 'bond-triple') currentBondOrder = 3;
-            smartDrawing.currentBondOrder = currentBondOrder;
+            const bondData = e.currentTarget.dataset.bond;
+            
+            if (bondId === 'bond-single' || bondId === 'sidebar-bond-single' || bondData === '1') {
+                currentBondOrder = 1;
+            } else if (bondId === 'bond-double' || bondId === 'sidebar-bond-double' || bondData === '2') {
+                currentBondOrder = 2;
+            } else if (bondId === 'bond-triple' || bondId === 'sidebar-bond-triple' || bondData === '3') {
+                currentBondOrder = 3;
+            }
+            
+            if (smartDrawing) {
+                smartDrawing.currentBondOrder = currentBondOrder;
+            }
             console.log('Bond order changed to:', currentBondOrder);
         });
     });
@@ -280,6 +357,18 @@ function setupDrawingTools() {
     document.getElementById('toggle-chiral')?.addEventListener('change', (e) => {
         showChiralCenters = e.target.checked;
         renderer.render(molecule);
+    });
+    
+    document.getElementById('toggle-smart-layout')?.addEventListener('change', (e) => {
+        if (renderer && renderer.layoutEngine) {
+            renderer.layoutEngine.setEnabled(e.target.checked);
+            if (e.target.checked) {
+                console.log('✨ Smart layout enabled');
+            } else {
+                console.log('⚪ Smart layout disabled');
+            }
+            renderer.render(molecule);
+        }
     });
     
     document.getElementById('add-explicit-h')?.addEventListener('click', () => {
@@ -497,6 +586,19 @@ function handleCanvasClick(e, mol, rend) {
     
     const clickedAtom = mol.getAtomAtPosition(x, y, 20);
     
+    // Handle selection with Ctrl+click
+    if (e.ctrlKey || e.metaKey) {
+        if (selectionManager) {
+            selectionManager.selectAtomAtPosition(x, y, true);
+        }
+        return;
+    }
+    
+    // Clear selection on normal click
+    if (selectionManager) {
+        selectionManager.clearSelection();
+    }
+    
     // Handle different tools
     switch(currentTool) {
         case 'atom':
@@ -514,8 +616,16 @@ function handleCanvasClick(e, mol, rend) {
                     updateMoleculeProperties();
                     rend.render(mol);
                     console.log('Bond created');
+                    // Save undo state
+                    if (undoRedoManager) {
+                        undoRedoManager.saveState(mol);
+                    }
                 }
             }
+            break;
+            
+        case 'chain':
+            // Chain tool handles its own clicks through mouse events
             break;
             
         case 'erase':
@@ -524,6 +634,10 @@ function handleCanvasClick(e, mol, rend) {
                 updateMoleculeProperties();
                 rend.render(mol);
                 console.log('Atom removed');
+                // Save undo state
+                if (undoRedoManager) {
+                    undoRedoManager.saveState(mol);
+                }
             }
             break;
             
@@ -535,6 +649,10 @@ function handleCanvasClick(e, mol, rend) {
                     updateMoleculeProperties();
                     rend.render(mol);
                     console.log('Template inserted:', currentTemplate);
+                    // Save undo state
+                    if (undoRedoManager) {
+                        undoRedoManager.saveState(mol);
+                    }
                 }
                 currentTool = 'atom'; // Reset to atom tool
                 document.getElementById('tool-atom')?.click();
@@ -547,6 +665,10 @@ function handleCanvasClick(e, mol, rend) {
                 updateMoleculeProperties();
                 rend.render(mol);
                 console.log('Group attached:', currentGroup);
+                // Save undo state
+                if (undoRedoManager) {
+                    undoRedoManager.saveState(mol);
+                }
                 currentTool = 'atom'; // Reset to atom tool
                 document.getElementById('tool-atom')?.click();
             }
@@ -581,6 +703,11 @@ function handleAtomTool(x, y, clickedAtom, mol, rend) {
     
     updateMoleculeProperties();
     rend.render(mol);
+    
+    // Save undo state
+    if (undoRedoManager) {
+        undoRedoManager.saveState(mol);
+    }
 }
 
 function attachFunctionalGroup(atom, groupType, mol) {
@@ -620,6 +747,13 @@ function handleMouseDown(e, mol, rend) {
 
     const clickedAtom = mol.getAtomAtPosition(x, y, 20);
 
+    // Handle new SmartChainTool
+    if (currentTool === 'chain' && chainToolManager) {
+        chainToolManager.onMouseDown(x, y);
+        return;
+    }
+
+    // Fall back to old chain drawing for backward compatibility
     if (currentTool === 'chain') {
         chainDrawingState = smartDrawing.startChainDrawing(x, y, mol);
         showChainPopup(chainDrawingState.totalCarbons);
@@ -656,6 +790,15 @@ function handleMouseMove(e, mol, rend) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    // Handle new SmartChainTool
+    if (currentTool === 'chain' && chainToolManager) {
+        chainToolManager.onMouseMove(x, y);
+        updateMoleculeProperties();
+        rend?.render(mol);
+        return;
+    }
+
+    // Fall back to old chain drawing
     if (chainDrawingState) {
         const result = smartDrawing.continueChainDrawing(chainDrawingState, x, y, mol);
         chainDrawingState = result.state;
@@ -734,11 +877,28 @@ function handleMouseUp(e, mol, rend) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
+    // Handle new SmartChainTool
+    if (currentTool === 'chain' && chainToolManager) {
+        chainToolManager.onMouseUp(x, y);
+        updateMoleculeProperties();
+        rend?.render(mol);
+        // Save undo state
+        if (undoRedoManager) {
+            undoRedoManager.saveState(mol);
+        }
+        return;
+    }
+
+    // Fall back to old chain drawing
     if (chainDrawingState) {
         hideChainPopup();
         chainDrawingState = null;
         updateMoleculeProperties();
         rend?.render(mol);
+        // Save undo state
+        if (undoRedoManager) {
+            undoRedoManager.saveState(mol);
+        }
         return;
     }
 
@@ -767,6 +927,11 @@ function handleMouseUp(e, mol, rend) {
     autoBondStart = false;
     updateMoleculeProperties();
     rend?.render(mol);
+    
+    // Save undo state
+    if (undoRedoManager) {
+        undoRedoManager.saveState(mol);
+    }
 }
 
 // ==================== MOLECULE PROPERTIES ====================
@@ -782,6 +947,34 @@ function updateMoleculeProperties() {
     const mwValue = typeof mw === 'number' ? mw : parseFloat(mw);
     document.getElementById('mol-mw').textContent = !isNaN(mwValue) ? mwValue.toFixed(2) + ' g/mol' : '-';
     document.getElementById('mol-atoms').textContent = molecule.atoms.length;
+    
+    // Update reaction UI if available
+    updateReactionUI();
+}
+
+/**
+ * Update reaction UI with current molecule
+ */
+function updateReactionUI() {
+    if (reactionUI && currentTab === 'simulate') {
+        // Only update if we're in the simulate tab
+        try {
+            if (molecule && molecule.atoms && molecule.atoms.length > 0) {
+                // ReactionUI expects a reaction object with reactant property
+                if (typeof reactionUI.setReaction === 'function') {
+                    reactionUI.setReaction(molecule);
+                } else if (typeof reactionUI.setMolecule === 'function') {
+                    reactionUI.setMolecule(molecule);
+                } else if (reactionUI.currentReaction) {
+                    // Update existing reaction
+                    reactionUI.currentReaction.reactant = molecule;
+                    reactionUI.updateReactionDisplay();
+                }
+            }
+        } catch (e) {
+            console.warn('Could not update reaction UI:', e);
+        }
+    }
 }
 
 // ==================== RING TEMPLATES ====================
@@ -903,20 +1096,29 @@ function moveToSimulation() {
         return;
     }
 
-    // Copy and center molecule for reactant panel
-    reactantMolecule = molecule.clone();
-    if (reactantRenderer) {
-        reactantMolecule.fitToCanvas(reactantRenderer.canvas.width, reactantRenderer.canvas.height);
-        reactantRenderer.render(reactantMolecule);
+    // Update ReactionUI with current molecule
+    if (reactionUI && typeof reactionUI.setReaction === 'function') {
+        reactionUI.setReaction(molecule);
+        console.log('✓ Molecule sent to ReactionUI');
     }
 
     // Switch to simulate tab
     switchTab('simulate');
+    
+    // Ensure ReactionUI is updated
+    setTimeout(() => {
+        updateReactionUI();
+    }, 100);
 }
 
 function setupReagentDropdowns() {
+    // Old reagent dropdown - now handled by ReactionUI
+    // Keep for backward compatibility but ReactionUI handles it
     const reagentSelect = document.getElementById('reagent-select');
-    if (!reagentSelect || !REAGENTS) return;
+    if (!reagentSelect || !REAGENTS) {
+        // ReactionUI handles reagent selection now
+        return;
+    }
     
     // Group reagents
     const groups = {

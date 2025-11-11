@@ -10,338 +10,240 @@
     <div class="app-container">
         <!-- Header -->
         <header class="header">
-            <h1>⚛️ Orbital</h1>
-            <p class="subtitle">All-in-One Organic Chemistry Simulator</p>
+            <div class="header-content">
+                <h1>⚛️ Orbital</h1>
+                <p class="subtitle">All-in-One Organic Chemistry Simulator</p>
+            </div>
         </header>
 
         <!-- Main Content Area -->
         <div class="main-content">
-            <!-- Toolbar (Persistent) -->
-            <aside class="toolbar">
-                <h3>Drawing Tools</h3>
-                
-                <!-- Element Selector -->
-                <div class="tool-section">
-                    <h4>Elements</h4>
-                    <div class="element-grid">
-                        <button class="element-btn active" data-element="C">C</button>
-                        <button class="element-btn" data-element="H">H</button>
-                        <button class="element-btn" data-element="N">N</button>
-                        <button class="element-btn" data-element="O">O</button>
-                        <button class="element-btn" data-element="F">F</button>
-                        <button class="element-btn" data-element="Cl">Cl</button>
-                        <button class="element-btn" data-element="Br">Br</button>
-                        <button class="element-btn" data-element="I">I</button>
-                        <button class="element-btn" data-element="S">S</button>
-                        <button class="element-btn" data-element="P">P</button>
+            <!-- Left Sidebar - Drawing Tools -->
+            <aside class="sidebar">
+                <div class="sidebar-section">
+                    <h3 class="sidebar-title">Drawing Tools</h3>
+                    
+                    <!-- Element Selector -->
+                    <div class="tool-group">
+                        <label class="tool-group-label">Elements</label>
+                        <div class="element-grid">
+                            <button class="element-btn active" data-element="C" title="Carbon">C</button>
+                            <button class="element-btn" data-element="H" title="Hydrogen">H</button>
+                            <button class="element-btn" data-element="N" title="Nitrogen">N</button>
+                            <button class="element-btn" data-element="O" title="Oxygen">O</button>
+                            <button class="element-btn" data-element="F" title="Fluorine">F</button>
+                            <button class="element-btn" data-element="Cl" title="Chlorine">Cl</button>
+                            <button class="element-btn" data-element="Br" title="Bromine">Br</button>
+                            <button class="element-btn" data-element="I" title="Iodine">I</button>
+                            <button class="element-btn" data-element="S" title="Sulfur">S</button>
+                            <button class="element-btn" data-element="P" title="Phosphorus">P</button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Bond Type Selector -->
-                <div class="tool-section">
-                    <h4>Bond Type</h4>
-                    <div class="bond-controls">
-                        <button class="bond-btn active" data-bond="1">Single</button>
-                        <button class="bond-btn" data-bond="2">Double</button>
-                        <button class="bond-btn" data-bond="3">Triple</button>
+                    <!-- Bond Type Selector -->
+                    <div class="tool-group">
+                        <label class="tool-group-label">Bond Type</label>
+                        <div class="bond-controls">
+                            <button class="bond-btn active" data-bond="1" id="sidebar-bond-single" title="Single Bond">━</button>
+                            <button class="bond-btn" data-bond="2" id="sidebar-bond-double" title="Double Bond">═</button>
+                            <button class="bond-btn" data-bond="3" id="sidebar-bond-triple" title="Triple Bond">≡</button>
+                        </div>
                     </div>
-                </div>
 
-                <!-- Ring Templates -->
-                <div class="tool-section">
-                    <h4>Templates</h4>
-                    <button class="action-btn" id="add-benzene">⬡ Benzene</button>
-                    <button class="action-btn" id="add-cyclohexane">⬢ Cyclohexane</button>
-                    <button class="action-btn" id="add-cyclopentane">⬠ Cyclopentane</button>
-                </div>
+                    <!-- Ring Templates -->
+                    <div class="tool-group">
+                        <label class="tool-group-label">Templates</label>
+                        <div class="template-grid">
+                            <button class="template-btn" id="add-benzene" title="Benzene Ring">⬡</button>
+                            <button class="template-btn" id="add-cyclohexane" title="Cyclohexane">⬢</button>
+                            <button class="template-btn" id="add-cyclopentane" title="Cyclopentane">⬠</button>
+                        </div>
+                    </div>
 
-                <!-- Quick Actions -->
-                <div class="tool-section">
-                    <h4>Actions</h4>
-                    <button class="action-btn" id="auto-organize">🪄 Organize</button>
-                    <button class="action-btn" id="clear-canvas">🗑️ Clear</button>
-                </div>
-                
-                <!-- Display Options -->
-                <div class="tool-section">
-                    <h4>Display</h4>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="toggle-implicit-h" checked>
-                        <span>Implicit H Count</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="toggle-aromatic" checked>
-                        <span>Aromatic Circles</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="toggle-valence-errors" checked>
-                        <span>Valence Errors</span>
-                    </label>
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="toggle-chiral">
-                        <span>Chiral Centers</span>
-                    </label>
-                    <button class="action-btn" id="add-explicit-h">➕ Show All H</button>
+                    <!-- Quick Actions -->
+                    <div class="tool-group">
+                        <label class="tool-group-label">Actions</label>
+                        <div class="action-buttons">
+                            <button class="action-btn" id="auto-organize" title="Auto-organize molecule">🪄 Organize</button>
+                            <button class="action-btn" id="clear-canvas" title="Clear canvas">🗑️ Clear</button>
+                        </div>
+                    </div>
+                    
+                    <!-- Display Options -->
+                    <div class="tool-group">
+                        <label class="tool-group-label">Display Options</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="toggle-implicit-h" checked>
+                                <span>Implicit H Count</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="toggle-aromatic" checked>
+                                <span>Aromatic Circles</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="toggle-valence-errors" checked>
+                                <span>Valence Errors</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="toggle-chiral">
+                                <span>Chiral Centers</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="toggle-smart-layout">
+                                <span>🎯 Smart Layout</span>
+                            </label>
+                        </div>
+                        <button class="action-btn full-width" id="add-explicit-h" title="Show all hydrogen atoms">➕ Show All H</button>
+                    </div>
                 </div>
             </aside>
 
-            <!-- Main Work Area with Tabs -->
-            <main class="main-work-area">
+            <!-- Main Work Area -->
+            <main class="work-area">
                 <!-- Tab Navigation -->
-                <div class="tab-navigation">
-                    <button class="tab-btn active" onclick="switchTab('draw')">
-                        ✏️ Draw
+                <nav class="tab-navigation">
+                    <button class="tab-btn active" data-tab="draw" onclick="switchTab('draw')">
+                        <span class="tab-icon">✏️</span>
+                        <span class="tab-label">Draw</span>
                     </button>
-                    <button class="tab-btn" onclick="switchTab('simulate')">
-                        🧪 Simulate Reaction
+                    <button class="tab-btn" data-tab="simulate" onclick="switchTab('simulate')">
+                        <span class="tab-icon">🧪</span>
+                        <span class="tab-label">Simulate</span>
                     </button>
-                    <button class="tab-btn" onclick="switchTab('mechanisms')">
-                        📊 Learn Mechanisms
+                    <button class="tab-btn" data-tab="mechanisms" onclick="switchTab('mechanisms')">
+                        <span class="tab-icon">📊</span>
+                        <span class="tab-label">Mechanisms</span>
                     </button>
-                </div>
+                </nav>
                 
                 <!-- Tab Content -->
-                <div class="tab-content-container">
+                <div class="tab-content">
                     <!-- DRAW TAB -->
                     <div id="draw-tab" class="tab-pane active">
-                        <!-- Professional Drawing Toolbar -->
+                        <!-- Drawing Toolbar -->
                         <div class="drawing-toolbar">
-                            <div class="toolbar-section">
-                                <label>Tools:</label>
-                                <button class="tool-btn active" id="tool-atom" title="Place Atoms (A)">
-                                    <span class="tool-icon">⚛️</span>
-                                    Atom
-                                </button>
-                                <button class="tool-btn" id="tool-bond" title="Draw Bonds (B)">
-                                    <span class="tool-icon">━</span>
-                                    Bond
-                                </button>
-                                <button class="tool-btn" id="tool-chain" title="Chain Drawing (C)">
-                                    <span class="tool-icon">〰️</span>
-                                    Chain
-                                </button>
-                                <button class="tool-btn" id="tool-erase" title="Eraser (E)">
-                                    <span class="tool-icon">🗑️</span>
-                                    Erase
-                                </button>
+                            <div class="toolbar-group">
+                                <span class="toolbar-label">Tools:</span>
+                                <div class="tool-btn-group">
+                                    <button class="tool-btn active" id="tool-atom" title="Place Atoms (A)">
+                                        <span class="tool-icon">⚛️</span>
+                                        <span>Atom</span>
+                                    </button>
+                                    <button class="tool-btn" id="tool-bond" title="Draw Bonds (B)">
+                                        <span class="tool-icon">━</span>
+                                        <span>Bond</span>
+                                    </button>
+                                    <button class="tool-btn" id="tool-chain" title="Chain Drawing (C)">
+                                        <span class="tool-icon">〰️</span>
+                                        <span>Chain</span>
+                                    </button>
+                                    <button class="tool-btn" id="tool-erase" title="Eraser (E)">
+                                        <span class="tool-icon">🗑️</span>
+                                        <span>Erase</span>
+                                    </button>
+                                </div>
                             </div>
                             
-                            <div class="toolbar-section">
-                                <label>Bond Type:</label>
-                                <button class="bond-btn active" id="bond-single" title="Single Bond">━</button>
-                                <button class="bond-btn" id="bond-double" title="Double Bond">═</button>
-                                <button class="bond-btn" id="bond-triple" title="Triple Bond">≡</button>
+                            <div class="toolbar-group">
+                                <span class="toolbar-label">Groups:</span>
+                                <div class="group-btn-group">
+                                    <button class="group-btn" id="group-oh" title="Hydroxyl">OH</button>
+                                    <button class="group-btn" id="group-nh2" title="Amino">NH₂</button>
+                                    <button class="group-btn" id="group-cooh" title="Carboxyl">COOH</button>
+                                    <button class="group-btn" id="group-cho" title="Aldehyde">CHO</button>
+                                </div>
                             </div>
                             
-                            <div class="toolbar-section">
-                                <label>Templates:</label>
-                                <button class="template-btn" id="template-benzene" title="Benzene Ring">
-                                    ⬡
-                                </button>
-                                <button class="template-btn" id="template-cyclohexane" title="Cyclohexane">
-                                    ⬢
-                                </button>
-                                <button class="template-btn" id="template-cyclopentane" title="Cyclopentane">
-                                    ⬟
-                                </button>
-                            </div>
-                            
-                            <div class="toolbar-section">
-                                <label>Groups:</label>
-                                <button class="group-btn" id="group-oh" title="Hydroxyl">OH</button>
-                                <button class="group-btn" id="group-nh2" title="Amino">NH₂</button>
-                                <button class="group-btn" id="group-cooh" title="Carboxyl">COOH</button>
-                                <button class="group-btn" id="group-cho" title="Aldehyde">CHO</button>
-                            </div>
-                            
-                            <div class="toolbar-section">
-                                <label>Options:</label>
-                                <button class="option-btn active" id="option-snap" title="Snap to Angles">
-                                    <span class="tool-icon">📐</span>
-                                </button>
-                                <button class="option-btn active" id="option-preview" title="Ghost Preview">
-                                    <span class="tool-icon">👻</span>
-                                </button>
+                            <div class="toolbar-group">
+                                <span class="toolbar-label">Options:</span>
+                                <div class="option-btn-group">
+                                    <button class="option-btn active" id="option-snap" title="Snap to Angles">
+                                        <span class="tool-icon">📐</span>
+                                    </button>
+                                    <button class="option-btn active" id="option-preview" title="Ghost Preview">
+                                        <span class="tool-icon">👻</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         
-                        <div class="draw-layout">
-                            <div class="canvas-section">
+                        <!-- Canvas Area -->
+                        <div class="canvas-container">
+                            <div class="canvas-wrapper">
                                 <canvas id="molecule-canvas" width="800" height="600"></canvas>
-                                <div class="canvas-hint">
-                                    <p>💡 Click to place atoms • Drag between atoms to create bonds • Use templates for common structures</p>
+                                <div class="canvas-overlay">
+                                    <div class="canvas-hint">
+                                        <p>💡 Click to place atoms • Drag between atoms to create bonds • Use templates for common structures</p>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="properties-sidebar">
-                                <h3>Molecule Properties</h3>
-                                <div class="prop-card">
-                                    <div class="prop-row">
-                                        <span class="prop-label">Name:</span>
-                                        <span class="prop-value" id="mol-name">-</span>
+                            
+                            <!-- Properties Panel -->
+                            <aside class="properties-panel">
+                                <h3 class="panel-title">Molecule Properties</h3>
+                                <div class="properties-card">
+                                    <div class="property-item">
+                                        <span class="property-label">Name:</span>
+                                        <span class="property-value" id="mol-name">-</span>
                                     </div>
-                                    <div class="prop-row">
-                                        <span class="prop-label">Formula:</span>
-                                        <span class="prop-value" id="mol-formula">-</span>
+                                    <div class="property-item">
+                                        <span class="property-label">Formula:</span>
+                                        <span class="property-value" id="mol-formula">-</span>
                                     </div>
-                                    <div class="prop-row">
-                                        <span class="prop-label">MW:</span>
-                                        <span class="prop-value" id="mol-mw">-</span>
+                                    <div class="property-item">
+                                        <span class="property-label">MW:</span>
+                                        <span class="property-value" id="mol-mw">-</span>
                                     </div>
-                                    <div class="prop-row">
-                                        <span class="prop-label">Atoms:</span>
-                                        <span class="prop-value" id="mol-atoms">0</span>
+                                    <div class="property-item">
+                                        <span class="property-label">Atoms:</span>
+                                        <span class="property-value" id="mol-atoms">0</span>
                                     </div>
                                 </div>
                                 
-                                <button class="btn-action-primary" onclick="moveToSimulation()">
-                                    🧪 Use in Reaction →
+                                <button class="btn-primary" onclick="moveToSimulation()" id="use-in-reaction-btn">
+                                    <span>🧪</span>
+                                    <span>Use in Reaction</span>
                                 </button>
-                            </div>
+                            </aside>
                         </div>
                     </div>
                     
                     <!-- SIMULATE TAB -->
                     <div id="simulate-tab" class="tab-pane">
-                        <div class="simulate-layout">
-                            <!-- Left: Reactant Canvas -->
-                            <div class="reactant-panel">
-                                <div class="panel-header">
-                                    <h3>1️⃣ Draw Reactant(s)</h3>
-                                    <span class="step-badge">Step 1</span>
-                                </div>
-                                <canvas id="reactant-canvas" width="600" height="400"></canvas>
-                                <div class="reactant-controls">
-                                    <button class="btn-primary" id="save-reactant-btn" onclick="saveReactant()">
-                                        ✅ Save Reactant
-                                    </button>
-                                    <button class="btn-secondary" onclick="clearReactantCanvas()">Clear</button>
-                                </div>
-                                
-                                <!-- Saved Reactants List -->
-                                <div class="saved-reactants" id="saved-reactants">
-                                    <h4>Reactants Added:</h4>
-                                    <div id="reactants-list" class="mol-chips-container">
-                                        <span class="empty-state">No reactants yet</span>
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <!-- Middle: Reagent Selection + Arrow -->
-                            <div class="reagent-panel">
-                                <div class="panel-header">
-                                    <h3>2️⃣ Choose Reagent</h3>
-                                    <span class="step-badge">Step 2</span>
-                                </div>
-                                
-                                <div class="reagent-selector">
-                                    <label>Select Reagent:</label>
-                                    <select id="reagent-select" class="reagent-dropdown" onchange="showReagentInfo()">
-                                        <option value="">-- Select Reagent --</option>
-                                    </select>
-                                    
-                                    <!-- Live Reagent Info Card -->
-                                    <div id="reagent-info-card" class="reagent-info-card" style="display:none;">
-                                        <div class="card-header">
-                                            <strong id="reagent-name-display"></strong>
-                                            <span class="reagent-badge" id="reagent-type-badge"></span>
-                                        </div>
-                                        <div class="card-body">
-                                            <div class="info-line">
-                                                <span class="icon">→</span>
-                                                <span id="reagent-use-display"></span>
-                                            </div>
-                                            <div class="info-line">
-                                                <span class="icon">⚗️</span>
-                                                <span id="reagent-conditions-display"></span>
-                                            </div>
-                                            <div class="info-line">
-                                                <span class="icon">🔬</span>
-                                                <span id="reagent-mechanism-display"></span>
-                                            </div>
-                                        </div>
-                                        <button class="btn-link-small" onclick="jumpToMechanism()">
-                                            View detailed mechanism →
-                                        </button>
-                                    </div>
-                                    
-                                    <label>Conditions:</label>
-                                    <select id="condition-select" class="reagent-dropdown">
-                                        <option value="">None</option>
-                                    </select>
-                                </div>
-                                
-                                <!-- Big Arrow -->
-                                <div class="reaction-arrow-visual">
-                                    <div class="arrow-line"></div>
-                                    <div class="arrow-head">→</div>
-                                    <div class="arrow-label" id="arrow-reagent-label">Add reagent</div>
-                                </div>
-                            </div>
-                            
-                            <!-- Right: Product -->
-                            <div class="product-panel">
-                                <div class="panel-header">
-                                    <h3>3️⃣ Product</h3>
-                                    <span class="step-badge">Step 3</span>
-                                </div>
-                                
-                                <div class="product-options">
-                                    <button class="btn-predict" onclick="autoPredict()" id="predict-btn" disabled>
-                                        🔮 Auto-Predict Product
-                                    </button>
-                                    <span class="or-divider">OR</span>
-                                    <button class="btn-manual" onclick="manualProduct()" id="manual-btn">
-                                        ✏️ Draw Manually
-                                    </button>
-                                </div>
-                                
-                                <canvas id="product-canvas" width="600" height="400"></canvas>
-                                
-                                <div class="product-info" id="product-info" style="display:none;">
-                                    <div class="info-card">
-                                        <p><strong>Formula:</strong> <span id="product-formula">-</span></p>
-                                        <p><strong>Name:</strong> <span id="product-name">-</span></p>
-                                    </div>
-                                </div>
-                                
-                                <!-- Export Options -->
-                                <div class="export-section" id="export-section" style="display:none;">
-                                    <h4>Complete Reaction:</h4>
-                                    <div class="reaction-summary" id="reaction-summary"></div>
-                                    <div class="export-buttons">
-                                        <button class="btn-primary" onclick="exportReactionImage()">📸 Export Image</button>
-                                        <button class="btn-secondary" onclick="exportReactionText()">📄 Export Text</button>
-                                        <button class="btn-secondary" onclick="resetReaction()">🔄 New Reaction</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <!-- Reaction Manager UI -->
+                        <div id="reaction-ui-container" class="reaction-ui-wrapper"></div>
 
-                        <div class="learning-panel">
+                        <!-- Learning Notebook -->
+                        <div class="learning-section">
                             <div class="learning-header">
                                 <h3>🧠 Learning Notebook</h3>
                                 <p>Capture custom reaction challenges so Orbital can learn alongside you.</p>
                             </div>
 
                             <form id="learning-form" class="learning-form">
-                                <label for="learning-problem">Problem prompt</label>
-                                <textarea id="learning-problem" placeholder="Describe the reaction scenario or exam-style question" required></textarea>
+                                <div class="form-group">
+                                    <label for="learning-problem">Problem prompt</label>
+                                    <textarea id="learning-problem" placeholder="Describe the reaction scenario or exam-style question" required></textarea>
+                                </div>
 
-                                <div class="learning-grid">
-                                    <div class="learning-field">
+                                <div class="form-row">
+                                    <div class="form-group">
                                         <label for="learning-reagent">Key reagents (optional)</label>
                                         <input type="text" id="learning-reagent" placeholder="e.g., Br₂, hv, peroxide">
                                     </div>
-                                    <div class="learning-field">
+                                    <div class="form-group">
                                         <label for="learning-solution">Expected outcome</label>
                                         <textarea id="learning-solution" placeholder="Summarize the product or transformation" required></textarea>
                                     </div>
                                 </div>
 
-                                <label for="learning-insight">Key insight / takeaway</label>
-                                <textarea id="learning-insight" placeholder="What principle should Orbital remember?"></textarea>
+                                <div class="form-group">
+                                    <label for="learning-insight">Key insight / takeaway</label>
+                                    <textarea id="learning-insight" placeholder="What principle should Orbital remember?"></textarea>
+                                </div>
 
-                                <button type="submit" class="learning-save-btn">💾 Save to notebook</button>
+                                <button type="submit" class="btn-primary">💾 Save to notebook</button>
                             </form>
 
                             <div id="learning-suggestions" class="learning-suggestions"></div>
@@ -351,9 +253,9 @@
 
                     <!-- MECHANISMS TAB -->
                     <div id="mechanisms-tab" class="tab-pane">
-                        <div class="mechanisms-layout">
-                            <!-- Sidebar with mechanism list -->
-                            <div class="mechanisms-sidebar">
+                        <div class="mechanisms-container">
+                            <!-- Mechanism Sidebar -->
+                            <aside class="mechanisms-sidebar">
                                 <div class="search-box">
                                     <input type="text" placeholder="🔍 Search mechanisms..." id="mech-search">
                                 </div>
@@ -388,25 +290,25 @@
                                     <button class="mech-btn" onclick="loadMechanism('grob_fragmentation')">Grob Fragmentation</button>
                                     <button class="mech-btn" onclick="loadMechanism('ester_hydrolysis_base')">Ester Hydrolysis</button>
                                 </div>
-                            </div>
+                            </aside>
                             
-                            <!-- Main mechanism display -->
-                            <div class="mechanism-display-area">
-                                <div class="mech-header">
+                            <!-- Mechanism Display -->
+                            <div class="mechanism-display">
+                                <div class="mechanism-header">
                                     <h2 id="mech-title">Select a mechanism to begin</h2>
-                                    <div class="mech-controls">
+                                    <div class="mechanism-controls">
                                         <button class="btn-icon" onclick="playAnimation()" title="Play Animation">▶️</button>
                                         <button class="btn-icon" onclick="exportSVG()" title="Export">💾</button>
                                     </div>
                                 </div>
                                 
-                                <div id="mechanism-canvas-container" class="mech-canvas">
-                                    <p class="placeholder">
+                                <div id="mechanism-canvas-container" class="mechanism-canvas">
+                                    <p class="placeholder-text">
                                         👈 Select a mechanism from the sidebar to view the step-by-step arrow-pushing mechanism
                                     </p>
                                 </div>
                                 
-                                <div id="mech-description" class="mech-description" style="display:none;">
+                                <div id="mech-description" class="mechanism-description" style="display:none;">
                                     <h3>How it works:</h3>
                                     <div id="mech-steps-list"></div>
                                 </div>
@@ -425,9 +327,9 @@
 
     <!-- JavaScript -->
     <script>
-        console.log('HTML loaded');
+        console.log('🚀 Orbital HTML loaded');
         window.onerror = function(msg, url, lineNo, columnNo, error) {
-            console.error('Global error:', msg, 'at', url, ':', lineNo);
+            console.error('❌ Global error:', msg, 'at', url, ':', lineNo);
             return false;
         };
     </script>
@@ -441,8 +343,19 @@
     <script src="src/js/reactions.js"></script>
     <script src="src/js/reactions-database.js"></script>
     <script src="src/js/mechanism-renderer.js"></script>
+    <script src="src/js/layout-engine.js"></script>
     <script src="src/js/renderer.js"></script>
+    <script src="src/js/undo-redo.js"></script>
+    <script src="src/js/selection.js"></script>
+    <script src="src/js/smart-chain-tool.js"></script>
+    <script src="src/js/keyboard-shortcuts.js"></script>
     <script src="src/js/learning-manager.js"></script>
+    <script src="src/js/pubchem-service.js"></script>
+    <script src="src/js/molecule-library.js"></script>
+    <script src="src/js/reaction-validator.js"></script>
+    <script src="src/js/reaction-engine.js"></script>
+    <script src="src/js/reaction-manager.js"></script>
+    <script src="src/js/reaction-ui.js"></script>
     <script src="src/js/main.js"></script>
 </body>
 </html>

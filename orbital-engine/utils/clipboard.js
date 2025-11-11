@@ -200,7 +200,7 @@ Note: This structure can be analyzed, modified, or used for reaction predictions
         if (copied) {
             molecule.clear();
             this.showNotification('Cut to clipboard!', 'success');
-            return true;
+            return false;
         }
         return false;
     }

@@ -191,7 +191,7 @@ class Renderer {
             if (molecule.atoms && Array.isArray(molecule.atoms)) {
                 molecule.atoms.forEach(atom => {
                     try {
-                        this.drawAtom(atom, molecule, molecule.selectedAtom === atom);
+                        this.drawAtom(atom, molecule.selectedAtom === atom);
 
                         if (this.showLonePairs && molecule.getAtomBonds) {
                             this.drawLonePairs(atom, molecule);
@@ -251,208 +251,28 @@ class Renderer {
         });
     }
 
-    // Draw an atom with proper skeletal notation
-    drawAtom(atom, molecule, isSelected) {
+    // Draw an atom
+    drawAtom(atom, isSelected) {
         const element = getElement(atom.element) || { symbol: atom.element, color: '#222' };
         const x = atom.position.x;
         const y = atom.position.y;
         const label = element.symbol || atom.element;
 
-        // Determine if we should show the atom label (skeletal notation for carbons)
-        const shouldShowLabel = this.shouldShowAtomLabel(atom, molecule);
-        
-        // For skeletal carbons, use minimal radius for selection/trimming
-        const radius = shouldShowLabel 
-            ? this.getAtomLabelRadius(label)
-            : this.currentStyle.minimumBondCap;
+        const radius = this.getAtomLabelRadius(label);
 
-        // Draw selection halo if needed
         if (atom.valenceValid === false) {
             this.drawSelectionHalo(x, y, radius, 'rgba(230, 57, 70, 0.18)', '#E63946');
         } else if (isSelected) {
             this.drawSelectionHalo(x, y, radius, 'rgba(255, 215, 0, 0.2)', '#FFB400');
         }
 
-        // Only draw label if needed (skeletal notation hides carbon labels)
-        if (shouldShowLabel) {
-            const previousFont = this.ctx.font;
-            this.ctx.font = this.atomLabelFont;
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillStyle = element.color || '#222';
-            this.ctx.fillText(label, x, y);
-            this.ctx.font = previousFont;
-        }
-
-        // Draw implicit hydrogens for carbons in skeletal notation
-        if (atom.element === 'C' && !shouldShowLabel) {
-            this.drawImplicitHydrogens(atom, molecule);
-        }
-    }
-
-    // Determine if atom label should be shown (skeletal notation rules)
-    shouldShowAtomLabel(atom, molecule) {
-        // Always show non-carbon atoms
-        if (atom.element !== 'C') {
-            return true;
-        }
-
-        // Show carbon if it has a charge
-        if (Math.abs(atom.charge) > 0.1) {
-            return true;
-        }
-
-        // Get bonds to this atom
-        const bonds = molecule.getAtomBonds ? molecule.getAtomBonds(atom.id) : [];
-        
-        // Show carbon if it has explicit hydrogens (H atoms connected)
-        const hasExplicitHydrogens = bonds.some(bond => {
-            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
-            const otherAtom = molecule.getAtomById(otherId);
-            return otherAtom && otherAtom.element === 'H';
-        });
-        
-        if (hasExplicitHydrogens) {
-            return true;
-        }
-
-        // Show carbon if it's terminal (only one bond)
-        if (bonds.length <= 1) {
-            return true;
-        }
-
-        // Show carbon if it has double or triple bonds (not purely skeletal)
-        const hasMultipleBonds = bonds.some(bond => bond.order > 1);
-        if (hasMultipleBonds) {
-            return true;
-        }
-
-        // Show carbon if it's connected to non-carbon atoms (heteroatoms)
-        const hasHeteroatoms = bonds.some(bond => {
-            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
-            const otherAtom = molecule.getAtomById(otherId);
-            return otherAtom && otherAtom.element !== 'C' && otherAtom.element !== 'H';
-        });
-        
-        if (hasHeteroatoms) {
-            return true;
-        }
-
-        // Otherwise, hide carbon label (skeletal notation)
-        return false;
-    }
-
-    // Draw implicit hydrogens (CH4, CH3, CH2, CH) for skeletal carbons
-    drawImplicitHydrogens(atom, molecule) {
-        // Calculate implicit hydrogens
-        const implicitH = this.calculateImplicitHydrogens(atom, molecule);
-        
-        if (implicitH <= 0) return;
-
-        // Get bonds to determine where to place H labels
-        const bonds = molecule.getAtomBonds ? molecule.getAtomBonds(atom.id) : [];
-        
-        // Calculate bond angles
-        const bondAngles = bonds.map(bond => {
-            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
-            const otherAtom = molecule.getAtomById(otherId);
-            if (!otherAtom) return null;
-            return Math.atan2(
-                otherAtom.position.y - atom.position.y,
-                otherAtom.position.x - atom.position.x
-            );
-        }).filter(angle => angle !== null).sort((a, b) => a - b);
-
-        // Find angles for hydrogen placement (opposite to bonds)
-        const hAngles = this.calculateHydrogenAngles(bondAngles, implicitH);
-        
-        // Draw H labels
-        const hDistance = this.currentStyle.fontSize * 0.8;
-        const hFontSize = Math.max(10, Math.round(this.currentStyle.fontSize * 0.7));
-        
-        hAngles.forEach((angle, index) => {
-            const hX = atom.position.x + Math.cos(angle) * hDistance;
-            const hY = atom.position.y + Math.sin(angle) * hDistance;
-            
-            // Draw H label
-            const previousFont = this.ctx.font;
-            this.ctx.font = `${this.currentStyle.fontWeight} ${hFontSize}px ${this.currentStyle.fontFamily}`;
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillStyle = '#666';
-            this.ctx.fillText('H', hX, hY);
-            this.ctx.font = previousFont;
-        });
-    }
-
-    // Calculate angles for placing implicit hydrogens
-    calculateHydrogenAngles(bondAngles, hCount) {
-        if (hCount === 0) return [];
-        
-        // If no bonds, distribute evenly
-        if (bondAngles.length === 0) {
-            const angles = [];
-            for (let i = 0; i < hCount; i++) {
-                angles.push((Math.PI * 2 * i) / hCount);
-            }
-            return angles;
-        }
-
-        // Find gaps between bonds to place hydrogens
-        const gaps = [];
-        const sortedAngles = [...bondAngles].sort((a, b) => a - b);
-        
-        // Calculate gaps between consecutive bonds
-        for (let i = 0; i < sortedAngles.length; i++) {
-            const nextIndex = (i + 1) % sortedAngles.length;
-            let startAngle = sortedAngles[i];
-            let endAngle = sortedAngles[nextIndex];
-            
-            if (endAngle <= startAngle) {
-                endAngle += Math.PI * 2;
-            }
-            
-            const gapSize = endAngle - startAngle;
-            const midpoint = startAngle + gapSize / 2;
-            
-            gaps.push({
-                startAngle,
-                endAngle,
-                size: gapSize,
-                midpoint
-            });
-        }
-        
-        // Sort gaps by size (largest first)
-        gaps.sort((a, b) => b.size - a.size);
-        
-        // Place hydrogens in largest gaps
-        const hAngles = [];
-        for (let i = 0; i < hCount && i < gaps.length; i++) {
-            let angle = gaps[i].midpoint;
-            // Normalize to 0-2π
-            while (angle >= Math.PI * 2) angle -= Math.PI * 2;
-            while (angle < 0) angle += Math.PI * 2;
-            hAngles.push(angle);
-        }
-        
-        return hAngles;
-    }
-
-    // Calculate implicit hydrogens for an atom
-    calculateImplicitHydrogens(atom, molecule) {
-        if (atom.element !== 'C') return 0;
-        
-        const bonds = molecule.getAtomBonds ? molecule.getAtomBonds(atom.id) : [];
-        let bondSum = 0;
-        
-        bonds.forEach(bond => {
-            bondSum += bond.order;
-        });
-        
-        // Carbon has valence 4
-        const implicitH = 4 - bondSum;
-        return Math.max(0, implicitH);
+        const previousFont = this.ctx.font;
+        this.ctx.font = this.atomLabelFont;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillStyle = element.color || '#222';
+        this.ctx.fillText(label, x, y);
+        this.ctx.font = previousFont;
     }
 
     drawSelectionHalo(x, y, radius, fillStyle, strokeStyle) {
@@ -472,7 +292,7 @@ class Renderer {
 
         if (!atom1 || !atom2) return;
 
-        const { start, end } = this.getTrimmedBondCoordinates(atom1, atom2, molecule);
+        const { start, end } = this.getTrimmedBondCoordinates(atom1, atom2);
         const x1 = start.x;
         const y1 = start.y;
         const x2 = end.x;
@@ -482,10 +302,8 @@ class Renderer {
         const angle = Math.atan2(y2 - y1, x2 - x1);
         const perpAngle = angle + Math.PI / 2;
 
-        // Check if both atoms are carbons and should use skeletal notation
-        const isSkeletal = atom1.element === 'C' && atom2.element === 'C' &&
-            !this.shouldShowAtomLabel(atom1, molecule) && 
-            !this.shouldShowAtomLabel(atom2, molecule);
+        // Check if both atoms are carbons - if so, use skeletal notation
+        const isSkeletal = atom1.element === 'C' && atom2.element === 'C';
 
         // Draw based on bond order
         if (bond.order === 1) {
@@ -573,7 +391,7 @@ class Renderer {
         return '#666'; // Ionic - lighter gray
     }
 
-    getTrimmedBondCoordinates(atom1, atom2, molecule) {
+    getTrimmedBondCoordinates(atom1, atom2) {
         const x1 = atom1.position.x;
         const y1 = atom1.position.y;
         const x2 = atom2.position.x;
@@ -587,14 +405,8 @@ class Renderer {
             return { start: { x: x1, y: y1 }, end: { x: x2, y: y2 } };
         }
 
-        // For skeletal C-C bonds, trim less (bonds should connect at vertices)
-        const isSkeletalBond = atom1.element === 'C' && atom2.element === 'C' && molecule;
-        const trim1 = isSkeletalBond && !this.shouldShowAtomLabel(atom1, molecule)
-            ? this.currentStyle.minimumBondCap * 0.5
-            : this.getAtomTrimDistance(atom1, molecule);
-        const trim2 = isSkeletalBond && !this.shouldShowAtomLabel(atom2, molecule)
-            ? this.currentStyle.minimumBondCap * 0.5
-            : this.getAtomTrimDistance(atom2, molecule);
+        const trim1 = this.getAtomTrimDistance(atom1);
+        const trim2 = this.getAtomTrimDistance(atom2);
 
         const ratio1 = trim1 / distance;
         const ratio2 = trim2 / distance;
@@ -611,15 +423,7 @@ class Renderer {
         };
     }
 
-    getAtomTrimDistance(atom, molecule) {
-        // For skeletal carbons, use minimal trim distance
-        if (atom.element === 'C' && molecule) {
-            const shouldShowLabel = this.shouldShowAtomLabel(atom, molecule);
-            if (!shouldShowLabel) {
-                return this.currentStyle.minimumBondCap + this.currentStyle.labelPadding;
-            }
-        }
-        
+    getAtomTrimDistance(atom) {
         const element = getElement(atom.element) || { symbol: atom.element };
         return this.getAtomLabelRadius(element.symbol || atom.element) + this.currentStyle.labelPadding;
     }
