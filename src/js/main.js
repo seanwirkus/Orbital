@@ -793,8 +793,8 @@ function handleMouseMove(e, mol, rend) {
     // Handle new SmartChainTool
     if (currentTool === 'chain' && chainToolManager) {
         chainToolManager.onMouseMove(x, y);
+        // Preview is handled by chainToolManager via renderer preview state
         updateMoleculeProperties();
-        rend?.render(mol);
         return;
     }
 
@@ -814,29 +814,22 @@ function handleMouseMove(e, mol, rend) {
     }
 
     // Update ghost preview position
-    if (currentTool === 'atom' && smartDrawing.showGhostPreview) {
+    if (currentTool === 'atom' && smartDrawing.showGhostPreview && rend) {
         ghostX = x;
         ghostY = y;
 
         // Check if hovering over an atom
         hoverAtom = mol.getAtomAtPosition(x, y, 20);
         
+        let angleGuides = null;
         if (hoverAtom) {
             // Predict smart position
             const predicted = smartDrawing.predictNextPosition(hoverAtom, mol, x, y);
             ghostX = predicted.x;
             ghostY = predicted.y;
             ghostPreviewActive = true;
-        } else {
-            ghostPreviewActive = false;
-        }
-        
-        // Render with ghost preview
-        rend.render(mol);
-        const ctx = e.target.getContext('2d');
-        
-        if (hoverAtom) {
-            // Draw angle guides
+            
+            // Calculate angle guides
             const bonds = mol.getAtomBonds(hoverAtom.id);
             const existingAngles = bonds.map(bond => {
                 const otherAtom = mol.getAtomById(
@@ -847,28 +840,39 @@ function handleMouseMove(e, mol, rend) {
             
             const bondCount = bonds.length;
             const hybridization = bondCount === 0 ? 'sp3' : bondCount === 1 ? 'sp3' : 'sp2';
-            smartDrawing.drawAngleGuides(ctx, hoverAtom, existingAngles, hybridization);
+            angleGuides = {
+                fromAtom: hoverAtom,
+                existingAngles,
+                hybridization,
+                bondLength: 60
+            };
+        } else {
+            ghostPreviewActive = false;
         }
         
-        // Draw ghost atom
-        smartDrawing.drawGhostPreview(ctx, ghostX, ghostY, ghostElement);
+        // Set preview state and render (all drawing happens in renderer)
+        rend.setPreviewState({
+            ghostAtom: ghostPreviewActive ? { x: ghostX, y: ghostY, element: ghostElement } : null,
+            angleGuides: angleGuides
+        });
+        rend.render(mol);
+    } else if (rend) {
+        // Clear preview when not in atom tool
+        rend.clearPreviewState();
     }
     
     // Handle bond drawing
-    if (drawingBond && bondStartAtom) {
+    if (drawingBond && bondStartAtom && rend) {
+        // Set temp bond preview state and render (all drawing happens in renderer)
+        rend.setPreviewState({
+            tempBond: {
+                x1: bondStartAtom.x,
+                y1: bondStartAtom.y,
+                x2: x,
+                y2: y
+            }
+        });
         rend.render(mol);
-        const ctx = e.target.getContext('2d');
-        
-        // Draw temporary bond line
-        ctx.save();
-        ctx.strokeStyle = '#667eea';
-        ctx.lineWidth = 3;
-        ctx.setLineDash([5, 5]);
-        ctx.beginPath();
-        ctx.moveTo(bondStartAtom.x, bondStartAtom.y);
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.restore();
     }
 }
 
@@ -880,6 +884,10 @@ function handleMouseUp(e, mol, rend) {
     // Handle new SmartChainTool
     if (currentTool === 'chain' && chainToolManager) {
         chainToolManager.onMouseUp(x, y);
+        // Clear preview state
+        if (rend) {
+            rend.clearPreviewState();
+        }
         updateMoleculeProperties();
         rend?.render(mol);
         // Save undo state

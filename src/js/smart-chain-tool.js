@@ -96,9 +96,18 @@ class SmartChainTool {
         // Update popup
         this.updatePopup(canvasX, canvasY, numCarbons);
         
-        // Trigger redraw
-        this.renderer.render(this.molecule);
-        this.drawPreview();
+        // Set preview state in renderer instead of drawing directly
+        if (this.renderer) {
+            this.renderer.setPreviewState({
+                chainPreview: {
+                    atoms: this.previewAtoms,
+                    startAtom: this.startAtom,
+                    startX: this.startX,
+                    startY: this.startY
+                }
+            });
+            this.renderer.render(this.molecule);
+        }
 
         return true;
     }

@@ -18,10 +18,10 @@
 
         <!-- Main Content Area -->
         <div class="main-content">
-            <!-- Left Sidebar - Drawing Tools -->
+            <!-- Left Sidebar - Tools -->
             <aside class="sidebar">
                 <div class="sidebar-section">
-                    <h3 class="sidebar-title">Drawing Tools</h3>
+                    <h3 class="sidebar-title">Tools</h3>
                     
                     <!-- Element Selector -->
                     <div class="tool-group">
@@ -34,7 +34,6 @@
                             <button class="element-btn" data-element="F" title="Fluorine">F</button>
                             <button class="element-btn" data-element="Cl" title="Chlorine">Cl</button>
                             <button class="element-btn" data-element="Br" title="Bromine">Br</button>
-                            <button class="element-btn" data-element="I" title="Iodine">I</button>
                             <button class="element-btn" data-element="S" title="Sulfur">S</button>
                             <button class="element-btn" data-element="P" title="Phosphorus">P</button>
                         </div>
@@ -67,34 +66,6 @@
                             <button class="action-btn" id="auto-organize" title="Auto-organize molecule">🪄 Organize</button>
                             <button class="action-btn" id="clear-canvas" title="Clear canvas">🗑️ Clear</button>
                         </div>
-                    </div>
-                    
-                    <!-- Display Options -->
-                    <div class="tool-group">
-                        <label class="tool-group-label">Display Options</label>
-                        <div class="checkbox-group">
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="toggle-implicit-h" checked>
-                                <span>Implicit H Count</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="toggle-aromatic" checked>
-                                <span>Aromatic Circles</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="toggle-valence-errors" checked>
-                                <span>Valence Errors</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="toggle-chiral">
-                                <span>Chiral Centers</span>
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="toggle-smart-layout">
-                                <span>🎯 Smart Layout</span>
-                            </label>
-                        </div>
-                        <button class="action-btn full-width" id="add-explicit-h" title="Show all hydrogen atoms">➕ Show All H</button>
                     </div>
                 </div>
             </aside>
@@ -172,11 +143,6 @@
                         <div class="canvas-container">
                             <div class="canvas-wrapper">
                                 <canvas id="molecule-canvas" width="800" height="600"></canvas>
-                                <div class="canvas-overlay">
-                                    <div class="canvas-hint">
-                                        <p>💡 Click to place atoms • Drag between atoms to create bonds • Use templates for common structures</p>
-                                    </div>
-                                </div>
                             </div>
                             
                             <!-- Properties Panel -->

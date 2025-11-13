@@ -130,7 +130,30 @@ class Renderer {
         this.currentStyle = this.styleAdapter.compute(null, this.canvas);
         this.atomLabelFont = `${this.currentStyle.fontWeight} ${this.currentStyle.fontSize}px ${this.currentStyle.fontFamily}`;
 
+        // Preview/temporary drawing state (to avoid redundant drawing)
+        this.previewState = {
+            ghostAtom: null,
+            tempBond: null,
+            chainPreview: null,
+            angleGuides: null
+        };
+
         window.addEventListener('resize', () => this.resize());
+    }
+
+    // Set preview state for temporary drawing
+    setPreviewState(state) {
+        this.previewState = { ...this.previewState, ...state };
+    }
+
+    // Clear preview state
+    clearPreviewState() {
+        this.previewState = {
+            ghostAtom: null,
+            tempBond: null,
+            chainPreview: null,
+            angleGuides: null
+        };
     }
 
     resize() {
@@ -210,6 +233,9 @@ class Renderer {
                 });
             }
 
+            // Draw preview/temporary elements (ghost atoms, temp bonds, etc.)
+            this.drawPreviewElements();
+
             console.log('✓ Render complete');
         } catch (error) {
             console.error('🔥 Critical render error:', error);
@@ -275,19 +301,86 @@ class Renderer {
 
         // Only draw label if needed (skeletal notation hides carbon labels)
         if (shouldShowLabel) {
-            const previousFont = this.ctx.font;
-            this.ctx.font = this.atomLabelFont;
-            this.ctx.textAlign = 'center';
-            this.ctx.textBaseline = 'middle';
-            this.ctx.fillStyle = element.color || '#222';
-            this.ctx.fillText(label, x, y);
-            this.ctx.font = previousFont;
+        const previousFont = this.ctx.font;
+        this.ctx.font = this.atomLabelFont;
+        this.ctx.textAlign = 'center';
+        this.ctx.textBaseline = 'middle';
+        this.ctx.fillStyle = element.color || '#222';
+        this.ctx.fillText(label, x, y);
+        this.ctx.font = previousFont;
         }
 
         // Draw implicit hydrogens for carbons in skeletal notation
         if (atom.element === 'C' && !shouldShowLabel) {
             this.drawImplicitHydrogens(atom, molecule);
         }
+        
+        // Draw implicit hydrogens for heteroatoms (O, N, etc.)
+        if (atom.element !== 'C' && atom.element !== 'H' && shouldShowLabel) {
+            this.drawHeteroatomImplicitHydrogens(atom, molecule);
+        }
+    }
+    
+    // Draw implicit hydrogens for heteroatoms (O, N, S, P, etc.)
+    drawHeteroatomImplicitHydrogens(atom, molecule) {
+        const bonds = molecule.getAtomBonds ? molecule.getAtomBonds(atom.id) : [];
+        const element = atom.element;
+        
+        // Calculate implicit hydrogens based on element and bond orders
+        let implicitH = 0;
+        let bondSum = 0;
+        
+        bonds.forEach(bond => {
+            bondSum += bond.order;
+        });
+        
+        // Standard valences
+        const valences = {
+            'O': 2, 'N': 3, 'S': 2, 'P': 3, 'F': 1, 'Cl': 1, 'Br': 1, 'I': 1
+        };
+        
+        const valence = valences[element] || 0;
+        if (valence === 0) return;
+        
+        implicitH = Math.max(0, valence - bondSum - (atom.charge || 0));
+        
+        // Special cases:
+        // - O with single bond to C should show as OH (implicit H = 1)
+        // - O with double bond to C should show as O (implicit H = 0)
+        // - N with appropriate bonds
+        
+        if (implicitH <= 0) return;
+        
+        // Get bond angles to place H
+        const bondAngles = bonds.map(bond => {
+            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+            const otherAtom = molecule.getAtomById(otherId);
+            if (!otherAtom) return null;
+            return Math.atan2(
+                otherAtom.position.y - atom.position.y,
+                otherAtom.position.x - atom.position.x
+            );
+        }).filter(angle => angle !== null).sort((a, b) => a - b);
+        
+        // For heteroatoms, typically show H opposite to the main bond
+        const hAngles = this.calculateHydrogenAngles(bondAngles, implicitH);
+        
+        // Draw H labels
+        const hDistance = this.currentStyle.fontSize * 0.7;
+        const hFontSize = Math.max(9, Math.round(this.currentStyle.fontSize * 0.65));
+        
+        hAngles.forEach(angle => {
+            const hX = atom.position.x + Math.cos(angle) * hDistance;
+            const hY = atom.position.y + Math.sin(angle) * hDistance;
+            
+            const previousFont = this.ctx.font;
+            this.ctx.font = `${this.currentStyle.fontWeight} ${hFontSize}px ${this.currentStyle.fontFamily}`;
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillStyle = '#666';
+            this.ctx.fillText('H', hX, hY);
+            this.ctx.font = previousFont;
+        });
     }
 
     // Determine if atom label should be shown (skeletal notation rules)
@@ -875,15 +968,155 @@ class Renderer {
         return brightness > 128 ? '#000' : '#FFF';
     }
 
-    // Draw temporary bond during creation
+    // Draw preview/temporary elements (ghost atoms, temp bonds, chain preview, etc.)
+    drawPreviewElements() {
+        // Draw temporary bond (for bond drawing tool)
+        if (this.previewState.tempBond) {
+            const { x1, y1, x2, y2 } = this.previewState.tempBond;
+            this.ctx.save();
+            this.ctx.strokeStyle = '#667eea';
+            this.ctx.lineWidth = 3;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.beginPath();
+            this.ctx.moveTo(x1, y1);
+            this.ctx.lineTo(x2, y2);
+            this.ctx.stroke();
+            this.ctx.restore();
+        }
+
+        // Draw ghost atom preview
+        if (this.previewState.ghostAtom) {
+            const { x, y, element } = this.previewState.ghostAtom;
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.4;
+            this.ctx.strokeStyle = '#667eea';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 15, 0, 2 * Math.PI);
+            this.ctx.stroke();
+            
+            this.ctx.font = 'bold 14px Arial';
+            this.ctx.fillStyle = '#667eea';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            this.ctx.fillText(element, x, y);
+            this.ctx.restore();
+        }
+
+        // Draw angle guides
+        if (this.previewState.angleGuides) {
+            const { fromAtom, existingAngles, hybridization, bondLength = 60 } = this.previewState.angleGuides;
+            const idealAngles = this.getIdealAnglesForHybridization(existingAngles[0] || 0, hybridization);
+            
+            this.ctx.save();
+            this.ctx.globalAlpha = 0.2;
+            this.ctx.strokeStyle = '#667eea';
+            this.ctx.lineWidth = 1;
+            this.ctx.setLineDash([3, 3]);
+            
+            idealAngles.forEach(angle => {
+                const used = existingAngles.some(existing => 
+                    Math.abs(this.normalizeAngle(angle - existing)) < 0.2
+                );
+                
+                if (!used) {
+                    const endX = fromAtom.position.x + bondLength * 1.5 * Math.cos(angle);
+                    const endY = fromAtom.position.y + bondLength * 1.5 * Math.sin(angle);
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(fromAtom.position.x, fromAtom.position.y);
+                    this.ctx.lineTo(endX, endY);
+                    this.ctx.stroke();
+                }
+            });
+            
+            this.ctx.restore();
+        }
+
+        // Draw chain preview
+        if (this.previewState.chainPreview) {
+            const { atoms, startAtom, startX, startY } = this.previewState.chainPreview;
+            
+            this.ctx.save();
+            this.ctx.strokeStyle = '#667eea';
+            this.ctx.lineWidth = 2;
+            this.ctx.setLineDash([5, 5]);
+            
+            let prevX = startAtom ? (startAtom.position?.x || startAtom.x) : startX;
+            let prevY = startAtom ? (startAtom.position?.y || startAtom.y) : startY;
+            
+            atoms.forEach(atom => {
+                const atomX = atom.position?.x || atom.x;
+                const atomY = atom.position?.y || atom.y;
+                
+                this.ctx.beginPath();
+                this.ctx.moveTo(prevX, prevY);
+                this.ctx.lineTo(atomX, atomY);
+                this.ctx.stroke();
+                
+                prevX = atomX;
+                prevY = atomY;
+            });
+            
+            // Draw preview atoms
+            this.ctx.fillStyle = '#667eea';
+            this.ctx.font = '14px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.textBaseline = 'middle';
+            
+            atoms.forEach(atom => {
+                const atomX = atom.position?.x || atom.x;
+                const atomY = atom.position?.y || atom.y;
+                
+                this.ctx.beginPath();
+                this.ctx.arc(atomX, atomY, 15, 0, Math.PI * 2);
+                this.ctx.strokeStyle = '#667eea';
+                this.ctx.stroke();
+                this.ctx.fillStyle = 'rgba(102, 126, 234, 0.1)';
+                this.ctx.fill();
+                
+                this.ctx.fillStyle = '#667eea';
+                this.ctx.fillText('C', atomX, atomY);
+            });
+            
+            this.ctx.restore();
+        }
+    }
+
+    // Helper for angle normalization
+    normalizeAngle(angle) {
+        while (angle > Math.PI) angle -= 2 * Math.PI;
+        while (angle < -Math.PI) angle += 2 * Math.PI;
+        return angle;
+    }
+
+    // Get ideal angles for hybridization
+    getIdealAnglesForHybridization(baseAngle, hybridization) {
+        const angles = [];
+        
+        if (hybridization === 'sp3') {
+            // Tetrahedral: 109.5° angles
+            angles.push(baseAngle);
+            angles.push(baseAngle + 1.91); // ~109.5° in radians
+            angles.push(baseAngle - 1.91);
+            angles.push(baseAngle + Math.PI);
+        } else if (hybridization === 'sp2') {
+            // Trigonal planar: 120° angles
+            angles.push(baseAngle);
+            angles.push(baseAngle + 2.094); // ~120° in radians
+            angles.push(baseAngle - 2.094);
+        } else if (hybridization === 'sp') {
+            // Linear: 180° angle
+            angles.push(baseAngle);
+            angles.push(baseAngle + Math.PI);
+        }
+        
+        return angles;
+    }
+
+    // Draw temporary bond during creation (legacy support)
     drawTempBond(x1, y1, x2, y2) {
-        this.ctx.beginPath();
-        this.ctx.moveTo(x1, y1);
-        this.ctx.lineTo(x2, y2);
-        this.ctx.strokeStyle = 'rgba(34, 34, 34, 0.45)';
-        this.ctx.lineWidth = this.currentStyle.bondWidth;
-        this.ctx.setLineDash([6, 6]);
-        this.ctx.stroke();
-        this.ctx.setLineDash([]);
+        this.setPreviewState({ tempBond: { x1, y1, x2, y2 } });
     }
 }

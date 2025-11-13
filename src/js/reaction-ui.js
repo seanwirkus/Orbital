@@ -1064,8 +1064,8 @@ class ReactionUI {
 
             // Draw label only if needed (skeletal notation)
             if (shouldShowCarbonLabel(atom)) {
-                ctx.fillStyle = atom.element === 'C' ? '#333' : '#667eea';
-                ctx.fillText(atom.element, x, y);
+            ctx.fillStyle = atom.element === 'C' ? '#333' : '#667eea';
+            ctx.fillText(atom.element, x, y);
             }
         });
     }

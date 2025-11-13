@@ -367,16 +367,19 @@ body {
     flex: 1;
     overflow: auto;
     padding: var(--spacing-lg);
+    display: flex;
+    flex-direction: column;
 }
 
 .tab-pane {
     display: none;
-    height: 100%;
+    flex: 1;
+    flex-direction: column;
     animation: fadeIn 0.3s ease;
 }
 
 .tab-pane.active {
-    display: block;
+    display: flex;
 }
 
 @keyframes fadeIn {
@@ -498,6 +501,8 @@ body {
     grid-template-columns: 1fr 280px;
     gap: var(--spacing-lg);
     height: calc(100vh - 200px);
+    flex: 1;
+    min-height: 0;
 }
 
 .canvas-wrapper {
@@ -507,6 +512,7 @@ body {
     box-shadow: var(--shadow-md);
     padding: var(--spacing-lg);
     overflow: hidden;
+    flex: 1;
 }
 
 #molecule-canvas {
@@ -573,6 +579,7 @@ body {
     box-shadow: var(--shadow-md);
     padding: var(--spacing-lg);
     height: fit-content;
+    width: 280px;
 }
 
 .panel-title {
@@ -646,6 +653,7 @@ body {
     box-shadow: var(--shadow-md);
     padding: var(--spacing-lg);
     margin-top: var(--spacing-lg);
+    flex-shrink: 0;
 }
 
 .learning-header {
@@ -912,6 +920,8 @@ body {
     border-radius: var(--radius-lg);
     box-shadow: var(--shadow-md);
     margin-bottom: var(--spacing-lg);
+    min-width: 0;
+    width: 100%;
 }
 
 .reaction-section {
@@ -919,6 +929,20 @@ body {
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     padding: var(--spacing-md);
+    min-width: 0;
+    overflow: hidden;
+}
+
+.reactant-section {
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+.products-section {
+    min-height: 300px;
+    display: flex;
+    flex-direction: column;
 }
 
 .reaction-section h4 {
@@ -934,12 +958,22 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    min-height: 150px;
+    min-height: 200px;
+    max-height: 300px;
     background: var(--bg-primary);
     border: 2px dashed var(--border);
     border-radius: var(--radius-md);
     color: var(--text-tertiary);
     margin-bottom: var(--spacing-md);
+    padding: var(--spacing-md);
+    position: relative;
+    overflow: hidden;
+}
+
+.reaction-molecule-display canvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
 }
 
 .molecule-preview {
@@ -952,6 +986,16 @@ body {
 }
 
 .reagents-section {
+    grid-column: 1 / -1;
+    min-height: 200px;
+}
+
+.mechanism-section {
+    grid-column: 1 / -1;
+    min-height: 250px;
+}
+
+.info-section {
     grid-column: 1 / -1;
 }
 
