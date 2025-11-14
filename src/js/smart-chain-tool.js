@@ -26,9 +26,20 @@ class SmartChainTool {
         this.MIN_DRAG_DISTANCE = 20;
         this.CARBONS_PER_50PX = 1; // How many carbons per 50px of drag
         
+        // Element to use (can be changed by user selection)
+        this.selectedElement = 'C'; // Default to carbon
+        
         // UI
         this.popup = null;
         this.canvas = renderer.canvas;
+    }
+    
+    /**
+     * Set the element to use for chain drawing
+     */
+    setElement(element) {
+        this.selectedElement = element || 'C';
+        console.log(`⛓️ Chain tool element set to: ${this.selectedElement}`);
     }
 
     /**
@@ -38,7 +49,11 @@ class SmartChainTool {
         this.isChainMode = true;
         this.isDrawing = false;
         this.clearPreview();
-        console.log('⛓️ Chain mode activated');
+        // Sync with current element selection
+        if (typeof currentElement !== 'undefined') {
+            this.setElement(currentElement);
+        }
+        console.log('⛓️ Chain mode activated with element:', this.selectedElement);
     }
 
     /**
@@ -101,6 +116,7 @@ class SmartChainTool {
             this.renderer.setPreviewState({
                 chainPreview: {
                     atoms: this.previewAtoms,
+                    bonds: this.previewBonds,
                     startAtom: this.startAtom,
                     startX: this.startX,
                     startY: this.startY
@@ -140,6 +156,7 @@ class SmartChainTool {
 
     /**
      * Update preview atoms and bonds
+     * IMPROVED: Better positioning and supports adding to existing chains
      */
     updatePreview(numCarbons) {
         this.previewAtoms = [];
@@ -150,22 +167,63 @@ class SmartChainTool {
         // Calculate direction vector
         const dx = this.currentX - this.startX;
         const dy = this.currentY - this.startY;
-        const baseAngle = Math.atan2(dy, dx);
+        let baseAngle = Math.atan2(dy, dx);
 
-        // Starting position
-        let x = this.startAtom ? this.startAtom.x : this.startX;
-        let y = this.startAtom ? this.startAtom.y : this.startY;
+        // Starting position - use existing atom if available
+        let prevX = this.startAtom ? (this.startAtom.position?.x || this.startAtom.x) : this.startX;
+        let prevY = this.startAtom ? (this.startAtom.position?.y || this.startAtom.y) : this.startY;
+
+        // If starting from existing atom, check existing bonds to avoid overlap
+        if (this.startAtom) {
+            const existingBonds = this.molecule.getAtomBonds(this.startAtom.id);
+            if (existingBonds.length > 0) {
+                // Find angle that avoids existing bonds
+                const bondAngles = existingBonds.map(bond => {
+                    const otherId = bond.atom1 === this.startAtom.id ? bond.atom2 : bond.atom1;
+                    const otherAtom = this.molecule.getAtomById(otherId);
+                    if (!otherAtom) return null;
+                    return Math.atan2(
+                        (otherAtom.position?.y || otherAtom.y) - prevY,
+                        (otherAtom.position?.x || otherAtom.x) - prevX
+                    );
+                }).filter(a => a !== null);
+                
+                // Use angle perpendicular to existing bonds
+                if (bondAngles.length > 0) {
+                    const avgAngle = bondAngles.reduce((sum, a) => sum + a, 0) / bondAngles.length;
+                    baseAngle = avgAngle + Math.PI / 2; // Perpendicular
+                }
+            }
+        }
 
         // Generate preview atoms in proper zigzag pattern /\/\/\/\
         for (let i = 0; i < numCarbons; i++) {
-            // Alternate angles: +30° and -30° from base direction
-            const angleOffset = (i % 2 === 0) ? Math.PI / 6 : -Math.PI / 6; // ±30 degrees
-            const bondAngle = baseAngle + angleOffset;
+            // Alternate angles: +30° and -30° from base direction for zigzag
+            const zigzagOffset = (i % 2 === 0) ? Math.PI / 6 : -Math.PI / 6; // ±30 degrees
+            const bondAngle = baseAngle + zigzagOffset;
 
-            x += this.BOND_LENGTH * Math.cos(bondAngle);
-            y += this.BOND_LENGTH * Math.sin(bondAngle);
+            const x = prevX + this.BOND_LENGTH * Math.cos(bondAngle);
+            const y = prevY + this.BOND_LENGTH * Math.sin(bondAngle);
 
-            this.previewAtoms.push({ x, y, element: 'C' });
+            const atomId = `preview_${i}`;
+            this.previewAtoms.push({ 
+                id: atomId,
+                element: this.selectedElement, // Use selected element (C, O, N, etc.)
+                position: { x, y }
+            });
+            
+            // Create bond from previous atom
+            if (i > 0 || this.startAtom) {
+                const prevAtomId = i > 0 ? `preview_${i-1}` : this.startAtom?.id;
+                this.previewBonds.push({
+                    atom1: prevAtomId,
+                    atom2: atomId,
+                    order: 1
+                });
+            }
+
+            prevX = x;
+            prevY = y;
         }
     }
 
@@ -223,6 +281,7 @@ class SmartChainTool {
 
     /**
      * Commit preview to actual molecule
+     * IMPROVED: Better integration with existing chains and atoms
      */
     commitChain(numCarbons) {
         if (numCarbons < 1) return;
@@ -235,35 +294,65 @@ class SmartChainTool {
         // Calculate direction
         const dx = this.currentX - this.startX;
         const dy = this.currentY - this.startY;
-        const baseAngle = Math.atan2(dy, dx);
+        let baseAngle = Math.atan2(dy, dx);
 
-        let x = this.startAtom ? this.startAtom.x : this.startX;
-        let y = this.startAtom ? this.startAtom.y : this.startY;
+        // Starting position - use existing atom if available
+        let x = this.startAtom ? (this.startAtom.position?.x || this.startAtom.x) : this.startX;
+        let y = this.startAtom ? (this.startAtom.position?.y || this.startAtom.y) : this.startY;
 
         let lastAtomId = this.startAtom ? this.startAtom.id : null;
         
-        // If no start atom, create first carbon
+        // If starting from existing atom, optimize angle to avoid existing bonds
+        if (this.startAtom) {
+            const existingBonds = this.molecule.getAtomBonds(this.startAtom.id);
+            if (existingBonds.length > 0) {
+                // Find optimal angle that avoids existing bonds
+                const bondAngles = existingBonds.map(bond => {
+                    const otherId = bond.atom1 === this.startAtom.id ? bond.atom2 : bond.atom1;
+                    const otherAtom = this.molecule.getAtomById(otherId);
+                    if (!otherAtom) return null;
+                    return Math.atan2(
+                        (otherAtom.position?.y || otherAtom.y) - y,
+                        (otherAtom.position?.x || otherAtom.x) - x
+                    );
+                }).filter(a => a !== null);
+                
+                // Use angle perpendicular to existing bonds for better placement
+                if (bondAngles.length > 0) {
+                    const avgAngle = bondAngles.reduce((sum, a) => sum + a, 0) / bondAngles.length;
+                    baseAngle = avgAngle + Math.PI / 2; // Perpendicular
+                }
+            }
+        }
+        
+        // If no start atom, create first atom with selected element
         if (!lastAtomId) {
-            const firstAtom = this.molecule.addAtom('C', x, y);
+            const firstAtom = this.molecule.addAtom(this.selectedElement, x, y);
             lastAtomId = firstAtom.id;
         }
 
-        // Add carbons with proper zigzag pattern /\/\/\/\
+        // Add atoms with proper zigzag pattern /\/\/\/\
         for (let i = 0; i < numCarbons; i++) {
-            // Alternate angles: +30° and -30° from base direction
+            // Alternate angles: +30° and -30° from base direction for zigzag
             const angleOffset = (i % 2 === 0) ? Math.PI / 6 : -Math.PI / 6;
             const bondAngle = baseAngle + angleOffset;
 
             x += this.BOND_LENGTH * Math.cos(bondAngle);
             y += this.BOND_LENGTH * Math.sin(bondAngle);
 
-            const newAtom = this.molecule.addAtom('C', x, y);
-            this.molecule.addBond(lastAtomId, newAtom.id, 1);
+            const newAtom = this.molecule.addAtom(this.selectedElement, x, y);
+            const bond = this.molecule.addBond(lastAtomId, newAtom.id, 1);
+            
+            // Update atom properties after each addition
+            if (this.molecule.updateAtomProperties) {
+                this.molecule.updateAtomProperties(this.molecule.getAtomById(lastAtomId));
+                this.molecule.updateAtomProperties(newAtom);
+            }
             
             lastAtomId = newAtom.id;
         }
 
-        console.log(`✅ Added chain of ${numCarbons} carbons (undo as one operation)`);
+        console.log(`✅ Added chain of ${numCarbons} ${this.selectedElement} atoms (undo as one operation)`);
     }
 
     /**

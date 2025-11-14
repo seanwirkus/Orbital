@@ -27,15 +27,34 @@
                     <div class="tool-group">
                         <label class="tool-group-label">Elements</label>
                         <div class="element-grid">
+                            <!-- Row 1: Most Common -->
                             <button class="element-btn active" data-element="C" title="Carbon">C</button>
                             <button class="element-btn" data-element="H" title="Hydrogen">H</button>
                             <button class="element-btn" data-element="N" title="Nitrogen">N</button>
                             <button class="element-btn" data-element="O" title="Oxygen">O</button>
                             <button class="element-btn" data-element="F" title="Fluorine">F</button>
+                            <!-- Row 2: Halogens & Common -->
                             <button class="element-btn" data-element="Cl" title="Chlorine">Cl</button>
                             <button class="element-btn" data-element="Br" title="Bromine">Br</button>
+                            <button class="element-btn" data-element="I" title="Iodine">I</button>
                             <button class="element-btn" data-element="S" title="Sulfur">S</button>
                             <button class="element-btn" data-element="P" title="Phosphorus">P</button>
+                            <!-- Row 3: Additional Common -->
+                            <button class="element-btn" data-element="B" title="Boron">B</button>
+                            <button class="element-btn" data-element="Si" title="Silicon">Si</button>
+                            <button class="element-btn" data-element="Se" title="Selenium">Se</button>
+                            <button class="element-btn" data-element="As" title="Arsenic">As</button>
+                            <button class="element-btn" data-element="Li" title="Lithium">Li</button>
+                            <!-- Row 4: Metals -->
+                            <button class="element-btn" data-element="Na" title="Sodium">Na</button>
+                            <button class="element-btn" data-element="K" title="Potassium">K</button>
+                            <button class="element-btn" data-element="Mg" title="Magnesium">Mg</button>
+                            <button class="element-btn" data-element="Ca" title="Calcium">Ca</button>
+                            <button class="element-btn" data-element="Al" title="Aluminum">Al</button>
+                            <!-- Row 5: Transition Metals -->
+                            <button class="element-btn" data-element="Fe" title="Iron">Fe</button>
+                            <button class="element-btn" data-element="Cu" title="Copper">Cu</button>
+                            <button class="element-btn" data-element="Zn" title="Zinc">Zn</button>
                         </div>
                     </div>
 
@@ -59,6 +78,29 @@
                         </div>
                     </div>
 
+                    <!-- Display Options -->
+                    <div class="tool-group">
+                        <label class="tool-group-label">Display</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="show-implicit-h" checked>
+                                <span>Show Implicit H</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="show-lone-pairs">
+                                <span>Show Lone Pairs</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="show-charges">
+                                <span>Show Charges</span>
+                            </label>
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="show-hybridization">
+                                <span>Show Hybridization</span>
+                            </label>
+                        </div>
+                    </div>
+                    
                     <!-- Quick Actions -->
                     <div class="tool-group">
                         <label class="tool-group-label">Actions</label>
@@ -300,8 +342,10 @@
         };
     </script>
     <script src="src/js/elements.js"></script>
+    <script src="src/js/periodic-table-loader.js"></script>
     <script src="src/js/geometry.js"></script>
     <script src="src/js/chemistry-intelligence.js"></script>
+    <script src="src/js/smart-chemistry-logic.js"></script>
     <script src="src/js/smart-drawing.js"></script>
     <script src="src/js/clipboard.js"></script>
     <script src="src/js/molecule.js"></script>

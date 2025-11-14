@@ -97,6 +97,14 @@ class ReactionUI {
                     <!-- Real-time validation status -->
                     <div id="validation-status" class="validation-status"></div>
                     
+                    <!-- Suggested Reagents (Guided) -->
+                    <div id="suggested-reagents" class="suggested-reagents">
+                        <h5>💡 Suggested Reagents:</h5>
+                        <div id="suggested-reagents-list" class="suggested-reagents-list">
+                            <p class="placeholder-text">Add a reactant to see suggested reagents</p>
+                        </div>
+                    </div>
+                    
                     <div class="reagents-list" id="reagents-list"></div>
                     <div class="reagent-selector">
                         <label>Add Reagent:</label>
@@ -788,6 +796,155 @@ class ReactionUI {
     /**
      * Set current reaction (for backward compatibility - sets Reactant 1)
      */
+    /**
+     * Suggest reagents based on reactant structure
+     */
+    suggestReagentsForMolecule(molecule) {
+        if (!molecule || !molecule.atoms || molecule.atoms.length === 0) {
+            return [];
+        }
+
+        const suggestions = [];
+        const reagentLibrary = this.reactionManager.getReagentLibrary();
+        
+        // Detect functional groups using reaction engine
+        const functionalGroups = this.detectFunctionalGroups(molecule);
+        
+        // Map functional groups to suggested reagents
+        const groupToReagents = {
+            'alcohol': ['KMnO4', 'CrO3', 'PCC', 'LiAlH4', 'NaBH4', 'H2SO4'],
+            'aldehyde': ['NaBH4', 'LiAlH4', 'KMnO4', 'Ag2O'],
+            'ketone': ['NaBH4', 'LiAlH4', 'KMnO4'],
+            'carboxylic_acid': ['LiAlH4', 'SOCl2', 'PCl5'],
+            'alkene': ['Br2', 'Cl2', 'H2', 'KMnO4', 'OsO4'],
+            'alkyne': ['H2', 'Br2', 'HgSO4'],
+            'ester': ['NaOH', 'LiAlH4', 'NaBH4'],
+            'amine': ['CH3I', 'Ac2O', 'HNO2'],
+            'halide': ['Mg', 'Li', 'Na']
+        };
+        
+        // Add reagents based on detected groups
+        functionalGroups.forEach(group => {
+            const reagents = groupToReagents[group] || [];
+            reagents.forEach(reagent => {
+                if (reagentLibrary[reagent] && !suggestions.includes(reagent)) {
+                    suggestions.push(reagent);
+                }
+            });
+        });
+        
+        // If no specific groups detected, suggest common reagents
+        if (suggestions.length === 0) {
+            suggestions.push('KMnO4', 'LiAlH4', 'Br2', 'H2SO4', 'NaOH');
+        }
+        
+        return suggestions.slice(0, 6); // Limit to 6 suggestions
+    }
+    
+    /**
+     * Detect functional groups in molecule
+     */
+    detectFunctionalGroups(molecule) {
+        const groups = [];
+        
+        // Simple detection based on atom types and bonds
+        molecule.atoms.forEach(atom => {
+            const bonds = molecule.getAtomBonds ? molecule.getAtomBonds(atom.id) : [];
+            const bondSum = bonds.reduce((sum, b) => sum + b.order, 0);
+            
+            // Alcohol detection (O with single bond to C)
+            if (atom.element === 'O' && bondSum === 1) {
+                const bond = bonds[0];
+                const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+                const otherAtom = molecule.getAtomById(otherId);
+                if (otherAtom && otherAtom.element === 'C') {
+                    groups.push('alcohol');
+                }
+            }
+            
+            // Carbonyl detection (C=O)
+            if (atom.element === 'C') {
+                const hasDoubleBondToO = bonds.some(bond => {
+                    if (bond.order === 2) {
+                        const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+                        const otherAtom = molecule.getAtomById(otherId);
+                        return otherAtom && otherAtom.element === 'O';
+                    }
+                    return false;
+                });
+                if (hasDoubleBondToO) {
+                    groups.push('carbonyl');
+                }
+            }
+            
+            // Alkene detection (C=C)
+            if (atom.element === 'C') {
+                const hasDoubleBond = bonds.some(bond => bond.order === 2);
+                if (hasDoubleBond) {
+                    groups.push('alkene');
+                }
+            }
+        });
+        
+        return [...new Set(groups)];
+    }
+    
+    /**
+     * Update suggested reagents display
+     */
+    updateSuggestedReagents() {
+        const container = document.getElementById('suggested-reagents-list');
+        if (!container) return;
+        
+        const primaryReactant = this.reactants[1];
+        if (!primaryReactant || !primaryReactant.atoms || primaryReactant.atoms.length === 0) {
+            container.innerHTML = '<p class="placeholder-text">Add a reactant to see suggested reagents</p>';
+            return;
+        }
+        
+        const suggestions = this.suggestReagentsForMolecule(primaryReactant);
+        const reagentLibrary = this.reactionManager.getReagentLibrary();
+        
+        if (suggestions.length === 0) {
+            container.innerHTML = '<p class="placeholder-text">No specific suggestions. Try common reagents like KMnO4, LiAlH4, or Br2</p>';
+            return;
+        }
+        
+        const html = suggestions.map(reagentKey => {
+            const reagent = reagentLibrary[reagentKey];
+            if (!reagent) return '';
+            
+            return `
+                <button class="suggested-reagent-btn" 
+                        onclick="reactionUI.addSuggestedReagent('${reagentKey}')"
+                        title="${reagent.description || reagentKey}">
+                    <strong>${reagentKey}</strong>
+                    ${reagent.name ? `<small>${reagent.name}</small>` : ''}
+                </button>
+            `;
+        }).join('');
+        
+        container.innerHTML = html;
+    }
+    
+    /**
+     * Add a suggested reagent
+     */
+    addSuggestedReagent(reagentKey) {
+        if (!this.currentReaction) {
+            this.currentReaction = { reagents: [] };
+        }
+        
+        if (!this.currentReaction.reagents.includes(reagentKey)) {
+            this.currentReaction.reagents.push(reagentKey);
+            this.updateDisplay(); // Fixed: use updateDisplay instead of updateReactionDisplay
+            this.updateValidationStatus();
+            this.showNotification(`Added ${reagentKey}`, 'success');
+        } else {
+            this.showNotification(`${reagentKey} already added`, 'info');
+        }
+    }
+
     setReaction(molecule, reactantNumber = 1) {
         if (!molecule || molecule.atoms.length === 0) {
             return;
@@ -795,6 +952,11 @@ class ReactionUI {
 
         // Store reactant
         this.reactants[reactantNumber] = molecule;
+        
+        // Update suggested reagents when reactant 1 is set
+        if (reactantNumber === 1) {
+            this.updateSuggestedReagents();
+        }
         
         // Create or update reaction
         if (!this.currentReaction) {

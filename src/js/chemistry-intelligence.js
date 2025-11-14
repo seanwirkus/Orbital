@@ -7,7 +7,10 @@ class ChemistryIntelligence {
         this.standardValence = {
             'H': 1, 'C': 4, 'N': 3, 'O': 2, 'F': 1,
             'P': 3, 'S': 2, 'Cl': 1, 'Br': 1, 'I': 1,
-            'B': 3, 'Si': 4
+            'B': 3, 'Si': 4, 'Li': 1, 'Na': 1, 'K': 1,
+            'Mg': 2, 'Ca': 2, 'Al': 3, 'Fe': 2, 'Cu': 2,
+            'Zn': 2, 'Se': 2, 'Te': 2, 'As': 3, 'Sb': 3,
+            'He': 0, 'Ne': 0, 'Ar': 0
         };
         
         // Expanded valences (with d-orbitals)
@@ -20,61 +23,139 @@ class ChemistryIntelligence {
         this.electronegativity = {
             'H': 2.20, 'C': 2.55, 'N': 3.04, 'O': 3.44, 'F': 3.98,
             'P': 2.19, 'S': 2.58, 'Cl': 3.16, 'Br': 2.96, 'I': 2.66,
-            'B': 2.04, 'Si': 1.90
+            'B': 2.04, 'Si': 1.90, 'Li': 0.98, 'Na': 0.93, 'K': 0.82,
+            'Mg': 1.31, 'Ca': 1.00, 'Al': 1.61, 'Fe': 1.83, 'Cu': 1.90,
+            'Zn': 1.65, 'Se': 2.55, 'Te': 2.10, 'As': 2.18, 'Sb': 2.05,
+            'He': 0.0, 'Ne': 0.0, 'Ar': 0.0
         };
     }
     
-    // Calculate implicit hydrogens for an atom
+    // Calculate implicit hydrogens for an atom (REVAMPED: Uses periodic table data)
     calculateImplicitHydrogens(atom, molecule) {
-        const element = atom.element;
+        const elementSymbol = atom.element;
         
         // Hydrogens don't have implicit hydrogens
-        if (element === 'H') return 0;
+        if (elementSymbol === 'H') return 0;
         
-        // Get standard valence
-        const valence = this.standardValence[element];
-        if (!valence) return 0;
+        // CRITICAL FIX: Use correct chemistry valences (periodic table JSON has wrong values!)
+        const correctValences = {
+            'O': 2, 'N': 3, 'S': 2, 'P': 3, 'F': 1, 'Cl': 1, 'Br': 1, 'I': 1,
+            'C': 4, 'H': 1, 'B': 3, 'Si': 4
+        };
+        
+        // Use correct valence if available, otherwise try periodic table or standardValence
+        let valence = correctValences[elementSymbol];
+        
+        if (!valence) {
+            if (typeof getElement !== 'undefined') {
+                const elementData = getElement(elementSymbol);
+                if (elementData && elementData.valence !== undefined) {
+                    valence = elementData.valence;
+                    // Fix wrong values from periodic table
+                    if (correctValences[elementSymbol] && valence !== correctValences[elementSymbol]) {
+                        valence = correctValences[elementSymbol];
+                    }
+                }
+            }
+        }
+        
+        // Fallback to standardValence if still not found
+        if (!valence || valence === 0) {
+            valence = this.standardValence[elementSymbol];
+        }
+        
+        if (!valence || valence === 0) return 0;
         
         // Calculate current bond count (accounting for bond orders)
         const bonds = molecule.getAtomBonds(atom.id);
         let bondSum = 0;
         
+        // CRITICAL FIX: Ensure bond.order is properly read
         bonds.forEach(bond => {
-            bondSum += bond.order;
+            const bondOrder = bond.order || 1; // Default to 1 if missing
+            if (bondOrder < 1 || bondOrder > 3) {
+                console.warn(`Invalid bond order: ${bondOrder} for bond ${bond.id}, using 1`);
+                bondSum += 1;
+            } else {
+                bondSum += bondOrder;
+            }
         });
         
         // Account for formal charge
         const charge = atom.charge || 0;
-        const availableValence = valence - bondSum;
         
-        // Adjust for charge
-        let implicitH = availableValence - charge;
+        // Calculate: implicitH = valence - bondSum - charge
+        // This is the correct chemistry formula
+        let implicitH = valence - bondSum - charge;
         
         // Can't have negative hydrogens
         return Math.max(0, implicitH);
     }
     
-    // Calculate formal charge on an atom
+    // Calculate formal charge on an atom (FIXED: Proper chemistry formula)
     calculateFormalCharge(atom, molecule) {
-        const element = atom.element;
-        const valence = this.standardValence[element];
-        if (!valence) return 0;
+        const elementSymbol = atom.element;
+        
+        // CRITICAL FIX: Use correct chemistry valences (periodic table JSON has wrong values!)
+        const correctValences = {
+            'O': 2, 'N': 3, 'S': 2, 'P': 3, 'F': 1, 'Cl': 1, 'Br': 1, 'I': 1,
+            'C': 4, 'H': 1, 'B': 3, 'Si': 4
+        };
+        
+        // Use correct valence if available
+        let valence = correctValences[elementSymbol];
+        
+        if (!valence) {
+            // Try periodic table or standardValence
+            if (typeof getElement !== 'undefined') {
+                const elementData = getElement(elementSymbol);
+                if (elementData && elementData.valence !== undefined) {
+                    valence = elementData.valence;
+                    // Override with correct value if periodic table is wrong
+                    if (correctValences[elementSymbol]) {
+                        valence = correctValences[elementSymbol];
+                    }
+                }
+            }
+            
+            // Fallback to standardValence
+            if (!valence || valence === 0) {
+                valence = this.standardValence[elementSymbol];
+            }
+        }
+        
+        if (!valence || valence === 0) return 0;
         
         const bonds = molecule.getAtomBonds(atom.id);
-        let bondCount = bonds.length;
         let bondSum = 0;
         
+        // Calculate total bonding electrons (each bond contributes order electrons)
         bonds.forEach(bond => {
-            bondSum += bond.order;
+            const bondOrder = bond.order || 1;
+            bondSum += bondOrder;
         });
         
-        // Count lone pair electrons (assume filled to valence)
+        // Calculate nonbonding electrons (lone pairs)
         const implicitH = this.calculateImplicitHydrogens(atom, molecule);
-        const totalElectrons = bondSum + implicitH;
         
-        // Formal charge = valence - (lone pairs + 1/2 bonding electrons)
-        // Simplified: valence - bonds - implicit H
-        return valence - totalElectrons;
+        // Formal charge = valence electrons - (nonbonding electrons + 1/2 bonding electrons)
+        // FC = V - (N + B/2) where:
+        //   V = valence electrons (from periodic table)
+        //   N = nonbonding electrons (lone pairs) = (valence - bondSum - implicitH) * 2
+        //   B = bonding electrons (shared) = bondSum * 2
+        
+        // Calculate lone pairs: (valence - bondSum - implicitH) represents available electron pairs
+        const lonePairs = Math.max(0, valence - bondSum - implicitH);
+        const nonbondingElectrons = lonePairs * 2; // Each lone pair = 2 electrons
+        
+        // Bonding electrons: each bond order contributes 2 shared electrons
+        const bondingElectrons = bondSum * 2;
+        
+        // Formal charge = V - (N + B/2)
+        const formalCharge = valence - nonbondingElectrons - (bondingElectrons / 2);
+        
+        // Round to avoid floating point errors
+        return Math.round(formalCharge * 100) / 100;
     }
     
     // Check if atom valence is satisfied

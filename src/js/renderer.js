@@ -121,8 +121,9 @@ class Renderer {
         this.resize();
 
         // Rendering options
-        this.showLonePairs = true;
-        this.showCharges = true;
+        this.showImplicitHydrogens = true; // Show implicit H by default
+        this.showLonePairs = false;
+        this.showCharges = false;
         this.showHybridization = false;
 
         this.styleAdapter = new MolViewStyleAdapter();
@@ -166,14 +167,29 @@ class Renderer {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
     }
 
-    // Render the entire molecule
+    // Render the entire molecule (with debouncing to prevent excessive renders)
     render(molecule) {
+        // Debounce rendering to prevent excessive calls
+        if (this._renderTimeout) {
+            clearTimeout(this._renderTimeout);
+        }
+        
+        this._renderTimeout = setTimeout(() => {
+            this._doRender(molecule);
+        }, 16); // ~60fps max
+    }
+    
+    _doRender(molecule) {
         try {
-            console.log('🎨 Rendering molecule:', {
-                atoms: molecule.atoms.length,
-                bonds: molecule.bonds.length,
-                canvasSize: { width: this.canvas.width, height: this.canvas.height }
-            });
+            // Only log occasionally to reduce console spam
+            if (!this._lastLogTime || Date.now() - this._lastLogTime > 1000) {
+                console.log('🎨 Rendering molecule:', {
+                    atoms: molecule.atoms.length,
+                    bonds: molecule.bonds.length,
+                    canvasSize: { width: this.canvas.width, height: this.canvas.height }
+                });
+                this._lastLogTime = Date.now();
+            }
 
             this.clear();
 
@@ -236,7 +252,11 @@ class Renderer {
             // Draw preview/temporary elements (ghost atoms, temp bonds, etc.)
             this.drawPreviewElements();
 
-            console.log('✓ Render complete');
+            // Only log completion occasionally
+            if (!this._lastCompleteLog || Date.now() - this._lastCompleteLog > 1000) {
+                console.log('✓ Render complete');
+                this._lastCompleteLog = Date.now();
+            }
         } catch (error) {
             console.error('🔥 Critical render error:', error);
             this.ctx.fillStyle = '#ff0000';
@@ -310,48 +330,100 @@ class Renderer {
         this.ctx.font = previousFont;
         }
 
-        // Draw implicit hydrogens for carbons in skeletal notation
-        if (atom.element === 'C' && !shouldShowLabel) {
-            this.drawImplicitHydrogens(atom, molecule);
-        }
-        
-        // Draw implicit hydrogens for heteroatoms (O, N, etc.)
-        if (atom.element !== 'C' && atom.element !== 'H' && shouldShowLabel) {
-            this.drawHeteroatomImplicitHydrogens(atom, molecule);
+        // Draw implicit hydrogens if enabled
+        if (this.showImplicitHydrogens) {
+            // Draw implicit hydrogens for carbons in skeletal notation
+            if (atom.element === 'C' && !shouldShowLabel) {
+                this.drawImplicitHydrogens(atom, molecule);
+            }
+            
+            // Draw implicit hydrogens for heteroatoms (O, N, etc.)
+            if (atom.element !== 'C' && atom.element !== 'H' && shouldShowLabel) {
+                this.drawHeteroatomImplicitHydrogens(atom, molecule);
+            }
         }
     }
     
     // Draw implicit hydrogens for heteroatoms (O, N, S, P, etc.)
+    // COMPLETELY REVAMPED: Uses periodic table physics correctly
     drawHeteroatomImplicitHydrogens(atom, molecule) {
+        if (!this.showImplicitHydrogens) return;
+        
         const bonds = molecule.getAtomBonds ? molecule.getAtomBonds(atom.id) : [];
-        const element = atom.element;
+        const elementSymbol = atom.element;
         
-        // Calculate implicit hydrogens based on element and bond orders
-        let implicitH = 0;
-        let bondSum = 0;
+        // Get element data from periodic table (use getElement helper)
+        const elementData = getElement(elementSymbol);
+        if (!elementData) {
+            console.warn(`No element data for ${elementSymbol}`);
+            return;
+        }
         
-        bonds.forEach(bond => {
-            bondSum += bond.order;
-        });
-        
-        // Standard valences
-        const valences = {
-            'O': 2, 'N': 3, 'S': 2, 'P': 3, 'F': 1, 'Cl': 1, 'Br': 1, 'I': 1
+        // CRITICAL FIX: Get standard valence - periodic table JSON has wrong values!
+        // Override with correct chemistry valences
+        const correctValences = {
+            'O': 2,   // Oxygen: 2 (NOT 6!)
+            'N': 3,   // Nitrogen: 3
+            'S': 2,   // Sulfur: 2 (can expand to 4, 6)
+            'P': 3,   // Phosphorus: 3 (can expand to 5)
+            'F': 1,   // Fluorine: 1
+            'Cl': 1,  // Chlorine: 1
+            'Br': 1,  // Bromine: 1
+            'I': 1,   // Iodine: 1
+            'C': 4,   // Carbon: 4
+            'H': 1,   // Hydrogen: 1
+            'B': 3,   // Boron: 3
+            'Si': 4   // Silicon: 4
         };
         
-        const valence = valences[element] || 0;
-        if (valence === 0) return;
+        // Use correct valence if available, otherwise use periodic table data
+        let valence = correctValences[elementSymbol] || elementData.valence || 0;
         
-        implicitH = Math.max(0, valence - bondSum - (atom.charge || 0));
+        // Safety check: if valence is still wrong (>= 6 for common elements), use correct value
+        if (correctValences[elementSymbol] && valence !== correctValences[elementSymbol]) {
+            valence = correctValences[elementSymbol];
+        }
         
-        // Special cases:
-        // - O with single bond to C should show as OH (implicit H = 1)
-        // - O with double bond to C should show as O (implicit H = 0)
-        // - N with appropriate bonds
+        if (valence === 0) return; // Noble gases, etc.
         
-        if (implicitH <= 0) return;
+        // CRITICAL FIX: Calculate bond sum correctly, ensuring bond.order is read properly
+        let bondSum = 0;
+        bonds.forEach(bond => {
+            // CRITICAL: Ensure bond.order is a number, default to 1 if missing
+            const bondOrder = bond.order || 1;
+            if (bondOrder < 1 || bondOrder > 3) {
+                console.warn(`Invalid bond order: ${bondOrder}, defaulting to 1`);
+                bondSum += 1;
+            } else {
+                bondSum += bondOrder;
+            }
+        });
         
-        // Get bond angles to place H
+        // Account for formal charge
+        const charge = atom.charge || 0;
+        
+        // Calculate implicit hydrogens using proper chemistry:
+        // implicitH = valence - bondSum - charge
+        // For O: valence = 2
+        //   - Single bond (bondSum = 1): implicitH = 2 - 1 - 0 = 1 → shows OH
+        //   - Double bond (bondSum = 2): implicitH = 2 - 2 - 0 = 0 → shows O (no H)
+        let implicitH = valence - bondSum - charge;
+        
+        // Can't have negative hydrogens
+        implicitH = Math.max(0, implicitH);
+        
+        // DEBUG: Log calculation for troubleshooting (only once per render, not every time)
+        if (elementSymbol === 'O' && bonds.length > 0 && Math.random() < 0.01) { // Only log 1% of the time
+            console.log(`🔬 O implicit H calc: valence=${valence}, bondSum=${bondSum}, charge=${charge}, implicitH=${implicitH}`, 
+                bonds.map(b => `bond order=${b.order || 1}`));
+        }
+        
+        // If no implicit hydrogens, don't draw anything
+        if (implicitH <= 0) {
+            return; // This should fix C=OH showing as C=O
+        }
+        
+        // Get bond angles to place H labels
         const bondAngles = bonds.map(bond => {
             const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
             const otherAtom = molecule.getAtomById(otherId);
@@ -362,7 +434,7 @@ class Renderer {
             );
         }).filter(angle => angle !== null).sort((a, b) => a - b);
         
-        // For heteroatoms, typically show H opposite to the main bond
+        // Calculate optimal positions for H labels
         const hAngles = this.calculateHydrogenAngles(bondAngles, implicitH);
         
         // Draw H labels
@@ -383,61 +455,131 @@ class Renderer {
         });
     }
 
-    // Determine if atom label should be shown (skeletal notation rules)
+    // Determine if atom label should be shown (COMPREHENSIVE skeletal notation rules)
+    // FIXED: Now properly detects double/triple bonds and shows more carbons
     shouldShowAtomLabel(atom, molecule) {
         // Always show non-carbon atoms
         if (atom.element !== 'C') {
             return true;
         }
 
-        // Show carbon if it has a charge
-        if (Math.abs(atom.charge) > 0.1) {
-            return true;
-        }
-
-        // Get bonds to this atom
+        // Get all bonds to this atom
         const bonds = molecule.getAtomBonds ? molecule.getAtomBonds(atom.id) : [];
-        
-        // Show carbon if it has explicit hydrogens (H atoms connected)
-        const hasExplicitHydrogens = bonds.some(bond => {
-            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
-            const otherAtom = molecule.getAtomById(otherId);
-            return otherAtom && otherAtom.element === 'H';
+        if (bonds.length === 0) {
+            return true; // Isolated atom, show it
+        }
+
+        // RULE 1: Show if charged
+        if (Math.abs(atom.charge || 0) > 0.1) {
+            return true;
+        }
+
+        // RULE 2: Show if terminal (only 1 bond)
+        if (bonds.length === 1) {
+            return true;
+        }
+
+        // RULE 3: Show if has double or triple bonds (CRITICAL FIX - check bond.order explicitly)
+        const hasMultipleBonds = bonds.some(bond => {
+            const bondOrder = bond.order || 1; // Default to 1 if not set
+            return bondOrder === 2 || bondOrder === 3;
         });
-        
-        if (hasExplicitHydrogens) {
-            return true;
-        }
-
-        // Show carbon if it's terminal (only one bond)
-        if (bonds.length <= 1) {
-            return true;
-        }
-
-        // Show carbon if it has double or triple bonds (not purely skeletal)
-        const hasMultipleBonds = bonds.some(bond => bond.order > 1);
         if (hasMultipleBonds) {
             return true;
         }
 
-        // Show carbon if it's connected to non-carbon atoms (heteroatoms)
+        // RULE 4: Show if connected to heteroatoms (non-C, non-H)
         const hasHeteroatoms = bonds.some(bond => {
             const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
             const otherAtom = molecule.getAtomById(otherId);
             return otherAtom && otherAtom.element !== 'C' && otherAtom.element !== 'H';
         });
-        
         if (hasHeteroatoms) {
             return true;
         }
 
-        // Otherwise, hide carbon label (skeletal notation)
-        return false;
+        // RULE 5: Show if has explicit hydrogens
+        const hasExplicitHydrogens = bonds.some(bond => {
+            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+            const otherAtom = molecule.getAtomById(otherId);
+            return otherAtom && otherAtom.element === 'H';
+        });
+        if (hasExplicitHydrogens) {
+            return true;
+        }
+
+        // RULE 6: Show if branch point (3+ bonds to carbons) - SHOW MORE CARBONS
+        const carbonBonds = bonds.filter(bond => {
+            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+            const otherAtom = molecule.getAtomById(otherId);
+            return otherAtom && otherAtom.element === 'C';
+        });
+        if (carbonBonds.length >= 3) {
+            return true; // Branch point - always show
+        }
+
+        // RULE 7: Show if in ring with special properties
+        if (molecule.detectRings) {
+            try {
+                const rings = molecule.detectRings();
+                const isInRing = rings.some(ring => Array.isArray(ring) && ring.includes(atom.id));
+                if (isInRing) {
+                    // Show if ring has double bonds or is small (3-5 membered)
+                    const ringWithAtom = rings.find(ring => Array.isArray(ring) && ring.includes(atom.id));
+                    if (ringWithAtom) {
+                        // Check if any bond in ring is double/triple
+                        const ringHasMultipleBonds = ringWithAtom.some(ringAtomId => {
+                            const ringAtom = molecule.getAtomById(ringAtomId);
+                            if (!ringAtom) return false;
+                            const ringAtomBonds = molecule.getAtomBonds(ringAtomId);
+                            return ringAtomBonds.some(b => {
+                                const order = b.order || 1;
+                                return order === 2 || order === 3;
+                            });
+                        });
+                        if (ringHasMultipleBonds || ringWithAtom.length <= 5) {
+                            return true; // Small ring or ring with multiple bonds
+                        }
+                    }
+                }
+            } catch (e) {
+                // If ring detection fails, continue with other rules
+                console.warn('Ring detection failed:', e);
+            }
+        }
+
+        // RULE 8: Show if valence is unusual (not standard 4)
+        const bondSum = bonds.reduce((sum, bond) => sum + (bond.order || 1), 0);
+        if (bondSum !== 4 && bondSum > 0) {
+            // Not standard tetravalent carbon - show it
+            return true;
+        }
+
+        // RULE 9: Show if 4+ bonds (quaternary carbon or unusual)
+        if (bonds.length >= 4) {
+            return true;
+        }
+
+        // RULE 10: Only hide if: 2 single bonds, both to C, no special properties
+        // This is the ONLY case where we hide (simple chain carbon)
+        if (bonds.length === 2 && 
+            carbonBonds.length === 2 && 
+            bonds.every(b => (b.order || 1) === 1) &&
+            bondSum === 2) {
+            // Simple internal chain carbon with 2 single bonds to C - can hide (skeletal)
+            return false;
+        }
+
+        // DEFAULT: Show carbon if we're not sure (be conservative - show more carbons)
+        return true;
     }
 
     // Draw implicit hydrogens (CH4, CH3, CH2, CH) for skeletal carbons
+    // REVAMPED: Uses periodic table physics
     drawImplicitHydrogens(atom, molecule) {
-        // Calculate implicit hydrogens
+        if (!this.showImplicitHydrogens) return;
+        
+        // Calculate implicit hydrogens using periodic table data
         const implicitH = this.calculateImplicitHydrogens(atom, molecule);
         
         if (implicitH <= 0) return;
@@ -532,19 +674,34 @@ class Renderer {
         return hAngles;
     }
 
-    // Calculate implicit hydrogens for an atom
+    // Calculate implicit hydrogens for an atom (REVAMPED: Uses periodic table data)
     calculateImplicitHydrogens(atom, molecule) {
-        if (atom.element !== 'C') return 0;
+        const elementSymbol = atom.element;
+        
+        // Get element data from periodic table
+        const elementData = getElement(elementSymbol);
+        if (!elementData) return 0;
+        
+        // Get standard valence from periodic table
+        const valence = elementData.valence || 0;
+        if (valence === 0) return 0; // Noble gases, etc.
         
         const bonds = molecule.getAtomBonds ? molecule.getAtomBonds(atom.id) : [];
         let bondSum = 0;
         
+        // CRITICAL FIX: Ensure bond.order is properly read
         bonds.forEach(bond => {
-            bondSum += bond.order;
+            const bondOrder = bond.order || 1; // Default to 1 if missing
+            bondSum += bondOrder;
         });
         
-        // Carbon has valence 4
-        const implicitH = 4 - bondSum;
+        // Account for formal charge
+        const charge = atom.charge || 0;
+        
+        // Calculate: implicitH = valence - bondSum - charge
+        const implicitH = valence - bondSum - charge;
+        
+        // Can't have negative hydrogens
         return Math.max(0, implicitH);
     }
 
@@ -565,6 +722,16 @@ class Renderer {
 
         if (!atom1 || !atom2) return;
 
+        // CRITICAL: Get bond order explicitly (default to 1 if missing)
+        // FIXED: Update bond object if order is missing or invalid
+        if (!bond.order || bond.order < 1 || bond.order > 3) {
+            if (bond.order !== 1) { // Only warn if it was set to something invalid
+                console.warn(`Invalid bond order: ${bond.order}, fixing to 1`);
+            }
+            bond.order = 1;
+        }
+        const bondOrder = bond.order;
+
         const { start, end } = this.getTrimmedBondCoordinates(atom1, atom2, molecule);
         const x1 = start.x;
         const y1 = start.y;
@@ -576,38 +743,39 @@ class Renderer {
         const perpAngle = angle + Math.PI / 2;
 
         // Check if both atoms are carbons and should use skeletal notation
-        const isSkeletal = atom1.element === 'C' && atom2.element === 'C' &&
+        // NOTE: Double/triple bonds should NOT be skeletal (they show atoms)
+        const isSkeletal = bondOrder === 1 && 
+            atom1.element === 'C' && atom2.element === 'C' &&
             !this.shouldShowAtomLabel(atom1, molecule) && 
             !this.shouldShowAtomLabel(atom2, molecule);
 
-        // Draw based on bond order
-        if (bond.order === 1) {
+        // Draw based on bond order (use explicit bondOrder variable)
+        if (bondOrder === 1) {
             this.drawSingleBond(x1, y1, x2, y2, bond, isSkeletal);
-        } else if (bond.order === 2) {
+        } else if (bondOrder === 2) {
             this.drawDoubleBond(x1, y1, x2, y2, perpAngle, bond, molecule, atom1, atom2);
-        } else if (bond.order === 3) {
+        } else if (bondOrder === 3) {
             this.drawTripleBond(x1, y1, x2, y2, perpAngle, bond);
+        } else {
+            // Fallback to single bond
+            console.warn(`Unknown bond order ${bondOrder}, drawing as single`);
+            this.drawSingleBond(x1, y1, x2, y2, bond, isSkeletal);
         }
     }
 
     drawSingleBond(x1, y1, x2, y2, bond, isSkeletal = false) {
         const color = this.getBondColor(bond);
         
-        // For skeletal notation, draw with consistent line style
-        if (isSkeletal) {
-            this.ctx.save();
-            this.ctx.strokeStyle = color;
-            this.ctx.lineWidth = this.currentStyle.bondWidth;
-            this.ctx.lineCap = 'round';
-            this.ctx.lineJoin = 'round';
-            this.ctx.beginPath();
-            this.ctx.moveTo(x1, y1);
-            this.ctx.lineTo(x2, y2);
-            this.ctx.stroke();
-            this.ctx.restore();
-        } else {
-            this.drawStyledLine(x1, y1, x2, y2, this.currentStyle.bondWidth, color);
-        }
+        this.ctx.save();
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = this.currentStyle.bondWidth;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+        this.ctx.beginPath();
+        this.ctx.moveTo(x1, y1);
+        this.ctx.lineTo(x2, y2);
+        this.ctx.stroke();
+        this.ctx.restore();
     }
 
     drawDoubleBond(x1, y1, x2, y2, perpAngle, bond, molecule, atom1, atom2) {
@@ -616,24 +784,39 @@ class Renderer {
         const dy = Math.sin(perpAngle) * offset;
         const color = this.getBondColor(bond);
 
+        this.ctx.save();
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = this.currentStyle.bondWidth;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+
         const orientation = this.getDoubleBondOrientation(atom1, atom2, molecule, perpAngle);
 
         if (orientation === 0) {
-            this.drawStyledLine(x1 + dx, y1 + dy, x2 + dx, y2 + dy, this.currentStyle.bondWidth, color);
-            this.drawStyledLine(x1 - dx, y1 - dy, x2 - dx, y2 - dy, this.currentStyle.bondWidth, color);
+            // Symmetric double bond (parallel lines)
+            this.ctx.beginPath();
+            this.ctx.moveTo(x1 + dx, y1 + dy);
+            this.ctx.lineTo(x2 + dx, y2 + dy);
+            this.ctx.stroke();
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(x1 - dx, y1 - dy);
+            this.ctx.lineTo(x2 - dx, y2 - dy);
+            this.ctx.stroke();
         } else {
-            const skewX = dx * orientation;
-            const skewY = dy * orientation;
-            this.drawStyledLine(x1, y1, x2, y2, this.currentStyle.bondWidth, color);
-            this.drawStyledLine(
-                x1 + skewX,
-                y1 + skewY,
-                x2 + skewX,
-                y2 + skewY,
-                this.currentStyle.bondWidth,
-                color
-            );
+            // Skewed double bond (one centered, one offset)
+            this.ctx.beginPath();
+            this.ctx.moveTo(x1, y1);
+            this.ctx.lineTo(x2, y2);
+            this.ctx.stroke();
+            
+            this.ctx.beginPath();
+            this.ctx.moveTo(x1 + dx * orientation, y1 + dy * orientation);
+            this.ctx.lineTo(x2 + dx * orientation, y2 + dy * orientation);
+            this.ctx.stroke();
         }
+        
+        this.ctx.restore();
     }
 
     drawTripleBond(x1, y1, x2, y2, perpAngle, bond) {
@@ -642,9 +825,31 @@ class Renderer {
         const dy = Math.sin(perpAngle) * offset;
         const color = this.getBondColor(bond);
 
-        this.drawStyledLine(x1, y1, x2, y2, this.currentStyle.bondWidth, color);
-        this.drawStyledLine(x1 + dx, y1 + dy, x2 + dx, y2 + dy, this.currentStyle.bondWidth, color);
-        this.drawStyledLine(x1 - dx, y1 - dy, x2 - dx, y2 - dy, this.currentStyle.bondWidth, color);
+        this.ctx.save();
+        this.ctx.strokeStyle = color;
+        this.ctx.lineWidth = this.currentStyle.bondWidth;
+        this.ctx.lineCap = 'round';
+        this.ctx.lineJoin = 'round';
+
+        // Center line
+        this.ctx.beginPath();
+        this.ctx.moveTo(x1, y1);
+        this.ctx.lineTo(x2, y2);
+        this.ctx.stroke();
+
+        // Top line
+        this.ctx.beginPath();
+        this.ctx.moveTo(x1 + dx, y1 + dy);
+        this.ctx.lineTo(x2 + dx, y2 + dy);
+        this.ctx.stroke();
+
+        // Bottom line
+        this.ctx.beginPath();
+        this.ctx.moveTo(x1 - dx, y1 - dy);
+        this.ctx.lineTo(x2 - dx, y2 - dy);
+        this.ctx.stroke();
+        
+        this.ctx.restore();
     }
 
     drawStyledLine(x1, y1, x2, y2, width, color) {
@@ -680,17 +885,24 @@ class Renderer {
             return { start: { x: x1, y: y1 }, end: { x: x2, y: y2 } };
         }
 
-        // For skeletal C-C bonds, trim less (bonds should connect at vertices)
-        const isSkeletalBond = atom1.element === 'C' && atom2.element === 'C' && molecule;
-        const trim1 = isSkeletalBond && !this.shouldShowAtomLabel(atom1, molecule)
-            ? this.currentStyle.minimumBondCap * 0.5
-            : this.getAtomTrimDistance(atom1, molecule);
-        const trim2 = isSkeletalBond && !this.shouldShowAtomLabel(atom2, molecule)
-            ? this.currentStyle.minimumBondCap * 0.5
-            : this.getAtomTrimDistance(atom2, molecule);
+        // For skeletal C-C bonds (both carbons hidden), bonds should meet at vertices
+        const isSkeletalBond = atom1.element === 'C' && atom2.element === 'C' && molecule &&
+            !this.shouldShowAtomLabel(atom1, molecule) && 
+            !this.shouldShowAtomLabel(atom2, molecule);
+        
+        let trim1, trim2;
+        if (isSkeletalBond) {
+            // Skeletal bonds: minimal trim, bonds connect at vertices
+            trim1 = this.currentStyle.minimumBondCap * 0.3;
+            trim2 = this.currentStyle.minimumBondCap * 0.3;
+        } else {
+            // Regular bonds: trim to avoid overlapping with atom labels
+            trim1 = this.getAtomTrimDistance(atom1, molecule);
+            trim2 = this.getAtomTrimDistance(atom2, molecule);
+        }
 
-        const ratio1 = trim1 / distance;
-        const ratio2 = trim2 / distance;
+        const ratio1 = Math.min(0.45, trim1 / distance); // Cap at 45% to prevent over-trimming
+        const ratio2 = Math.min(0.45, trim2 / distance);
 
         return {
             start: {
@@ -1034,50 +1246,61 @@ class Renderer {
             this.ctx.restore();
         }
 
-        // Draw chain preview
+        // Draw chain preview - show ALL carbons with labels
         if (this.previewState.chainPreview) {
-            const { atoms, startAtom, startX, startY } = this.previewState.chainPreview;
+            const { atoms, bonds, startAtom, startX, startY } = this.previewState.chainPreview;
             
             this.ctx.save();
-            this.ctx.strokeStyle = '#667eea';
-            this.ctx.lineWidth = 2;
-            this.ctx.setLineDash([5, 5]);
+            this.ctx.globalAlpha = 0.7;
             
-            let prevX = startAtom ? (startAtom.position?.x || startAtom.x) : startX;
-            let prevY = startAtom ? (startAtom.position?.y || startAtom.y) : startY;
-            
-            atoms.forEach(atom => {
-                const atomX = atom.position?.x || atom.x;
-                const atomY = atom.position?.y || atom.y;
+            // Draw preview bonds first
+            if (bonds && bonds.length > 0) {
+                this.ctx.strokeStyle = '#667eea';
+                this.ctx.lineWidth = this.currentStyle.bondWidth;
+                this.ctx.setLineDash([5, 5]);
+                this.ctx.lineCap = 'round';
                 
-                this.ctx.beginPath();
-                this.ctx.moveTo(prevX, prevY);
-                this.ctx.lineTo(atomX, atomY);
-                this.ctx.stroke();
-                
-                prevX = atomX;
-                prevY = atomY;
-            });
+                bonds.forEach(bond => {
+                    const atom1 = atoms.find(a => a.id === bond.atom1) || startAtom;
+                    const atom2 = atoms.find(a => a.id === bond.atom2);
+                    
+                    if (!atom1 || !atom2) return;
+                    
+                    const x1 = atom1.position?.x || atom1.x || startX;
+                    const y1 = atom1.position?.y || atom1.y || startY;
+                    const x2 = atom2.position?.x || atom2.x;
+                    const y2 = atom2.position?.y || atom2.y;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x1, y1);
+                    this.ctx.lineTo(x2, y2);
+                    this.ctx.stroke();
+                });
+            }
             
-            // Draw preview atoms
-            this.ctx.fillStyle = '#667eea';
-            this.ctx.font = '14px Arial';
+            // Draw preview atoms with labels (show ALL carbons, not skeletal)
+            this.ctx.font = `${this.currentStyle.fontWeight} ${this.currentStyle.fontSize}px ${this.currentStyle.fontFamily}`;
             this.ctx.textAlign = 'center';
             this.ctx.textBaseline = 'middle';
             
             atoms.forEach(atom => {
                 const atomX = atom.position?.x || atom.x;
                 const atomY = atom.position?.y || atom.y;
+                const element = atom.element || 'C';
                 
+                // Draw atom circle
                 this.ctx.beginPath();
-                this.ctx.arc(atomX, atomY, 15, 0, Math.PI * 2);
+                this.ctx.arc(atomX, atomY, 18, 0, Math.PI * 2);
                 this.ctx.strokeStyle = '#667eea';
+                this.ctx.lineWidth = 2;
                 this.ctx.stroke();
-                this.ctx.fillStyle = 'rgba(102, 126, 234, 0.1)';
+                this.ctx.fillStyle = 'rgba(102, 126, 234, 0.15)';
                 this.ctx.fill();
                 
-                this.ctx.fillStyle = '#667eea';
-                this.ctx.fillText('C', atomX, atomY);
+                // Draw element label (always show for preview)
+                const elem = getElement(element) || { symbol: element, color: '#667eea' };
+                this.ctx.fillStyle = elem.color || '#667eea';
+                this.ctx.fillText(element, atomX, atomY);
             });
             
             this.ctx.restore();

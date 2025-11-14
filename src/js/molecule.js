@@ -84,8 +84,20 @@ class Molecule {
         return atom;
     }
 
-    // Remove an atom and its associated bonds
+    // Remove an atom and its associated bonds (FIXED: Properly cleans up bond references)
     removeAtom(atomId) {
+        // FIXED: Clean up bond references from other atoms BEFORE removing bonds
+        this.bonds.forEach(bond => {
+            if (bond.atom1 === atomId || bond.atom2 === atomId) {
+                const otherAtomId = bond.atom1 === atomId ? bond.atom2 : bond.atom1;
+                const otherAtom = this.getAtomById(otherAtomId);
+                if (otherAtom) {
+                    // Remove bond reference from other atom's bonds array
+                    otherAtom.bonds = otherAtom.bonds.filter(id => id !== bond.id);
+                }
+            }
+        });
+        
         // Remove all bonds connected to this atom
         this.bonds = this.bonds.filter(bond => {
             return bond.atom1 !== atomId && bond.atom2 !== atomId;
@@ -107,8 +119,32 @@ class Molecule {
         );
         
         if (existingBond) {
-            // Update existing bond order
+            // FIXED: Validate before updating bond order
+            const atom1 = this.getAtomById(existingBond.atom1);
+            const atom2 = this.getAtomById(existingBond.atom2);
+            
+            if (!atom1 || !atom2) return null;
+            
+            // Calculate if new bond order would exceed valence
+            const oldOrder = existingBond.order || 1;
+            const orderDiff = order - oldOrder;
+            
+            // Check if atoms can support the change
+            if (orderDiff > 0) {
+                // Increasing bond order - check if valence allows it
+                if (!this.canAddBond(atom1, orderDiff) || !this.canAddBond(atom2, orderDiff)) {
+                    console.warn('Cannot increase bond order - valence would be exceeded');
+                    return null;
+                }
+            }
+            
+            // Update bond order
             existingBond.order = order;
+            
+            // Update atom properties after bond order change
+            this.updateAtomProperties(atom1);
+            this.updateAtomProperties(atom2);
+            
             return existingBond;
         }
         
@@ -127,18 +163,29 @@ class Molecule {
             id: `bond_${this.nextBondId++}`,
             atom1: atom1Id,
             atom2: atom2Id,
-            order: order,
+            order: order, // CRITICAL: Store bond order explicitly
             length: this.calculateBondLength(atom1, atom2),
             polarity: calculateBondPolarity(atom1.element, atom2.element)
         };
+        
+        // Ensure bond order is valid
+        if (!bond.order || bond.order < 1) {
+            bond.order = 1;
+        }
+        if (bond.order > 3) {
+            bond.order = 3; // Cap at triple bond
+        }
         
         this.bonds.push(bond);
         atom1.bonds.push(bond.id);
         atom2.bonds.push(bond.id);
 
-        // Update properties for both atoms
+        // Update properties for both atoms (this will recalculate hybridization, etc.)
         this.updateAtomProperties(atom1);
         this.updateAtomProperties(atom2);
+
+        // Log bond creation for debugging
+        console.log(`🔗 Bond created: ${atom1.element}-${atom2.element} (order: ${bond.order})`);
 
         return bond;
     }
@@ -241,19 +288,34 @@ class Molecule {
         });
     }
 
-    // Change bond order
+    // Change bond order (with validation)
     changeBondOrder(bondId, newOrder) {
         const bond = this.bonds.find(b => b.id === bondId);
         if (!bond) return;
         
+        // Validate bond order
+        if (newOrder < 1) newOrder = 1;
+        if (newOrder > 3) newOrder = 3;
+        
+        const oldOrder = bond.order || 1;
         bond.order = newOrder;
         
-        // Update affected atoms
+        console.log(`🔗 Bond order changed: ${oldOrder} → ${newOrder} (bond ${bondId})`);
+        
+        // Update affected atoms (recalculate hybridization, valence, etc.)
         const atom1 = this.getAtomById(bond.atom1);
         const atom2 = this.getAtomById(bond.atom2);
         
-        if (atom1) this.updateAtomProperties(atom1);
-        if (atom2) this.updateAtomProperties(atom2);
+        if (atom1) {
+            this.updateAtomProperties(atom1);
+            // Validate valence after bond order change
+            atom1.valenceValid = this.validateAtomValence(atom1);
+        }
+        if (atom2) {
+            this.updateAtomProperties(atom2);
+            // Validate valence after bond order change
+            atom2.valenceValid = this.validateAtomValence(atom2);
+        }
     }
 
     // Update atom properties (hybridization, charge, etc.)
@@ -318,13 +380,29 @@ class Molecule {
         }
     }
 
-    // Validate atom valence
+    // Validate atom valence (FIXED: Uses corrected valences)
     validateAtomValence(atom) {
-        const element = getElement(atom.element);
-        if (!element) return false;
+        // CRITICAL FIX: Use corrected valences (periodic table JSON has wrong values!)
+        const correctValences = {
+            'O': 2, 'N': 3, 'S': 2, 'P': 3, 'F': 1, 'Cl': 1, 'Br': 1, 'I': 1,
+            'C': 4, 'H': 1, 'B': 3, 'Si': 4
+        };
+        
+        let maxValence = correctValences[atom.element];
+        if (!maxValence) {
+            const element = getElement(atom.element);
+            if (!element) return false;
+            maxValence = element.valence || 0;
+            // Fix wrong values from periodic table
+            if (correctValences[atom.element] && maxValence !== correctValences[atom.element]) {
+                maxValence = correctValences[atom.element];
+            }
+        }
+        
+        if (maxValence === 0) return true; // Noble gases are valid
         
         const currentBondOrder = this.getAtomBondCount(atom.id);
-        return currentBondOrder <= element.valence;
+        return currentBondOrder <= maxValence;
     }
 
     // Get atom by ID
@@ -335,11 +413,39 @@ class Molecule {
     // Get atom at position (for click detection)
     getAtomAtPosition(x, y, threshold = 20) {
         return this.atoms.find(atom => {
-            if (!atom || !atom.x || !atom.y) return false;
-            const dx = atom.x - x;
-            const dy = atom.y - y;
+            if (!atom || !atom.position) return false;
+            const dx = (atom.position.x || atom.x) - x;
+            const dy = (atom.position.y || atom.y) - y;
             const distance = Math.sqrt(dx * dx + dy * dy);
             return distance <= threshold;
+        });
+    }
+    
+    // Get bond at position (for click detection)
+    getBondAtPosition(x, y, threshold = 8) {
+        return this.bonds.find(bond => {
+            const atom1 = this.getAtomById(bond.atom1);
+            const atom2 = this.getAtomById(bond.atom2);
+            if (!atom1 || !atom2) return false;
+            
+            const x1 = atom1.position?.x || atom1.x || 0;
+            const y1 = atom1.position?.y || atom1.y || 0;
+            const x2 = atom2.position?.x || atom2.x || 0;
+            const y2 = atom2.position?.y || atom2.y || 0;
+            
+            // Calculate distance from point to line segment
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const lengthSq = dx * dx + dy * dy;
+            
+            if (lengthSq === 0) return false;
+            
+            const t = Math.max(0, Math.min(1, ((x - x1) * dx + (y - y1) * dy) / lengthSq));
+            const projX = x1 + t * dx;
+            const projY = y1 + t * dy;
+            
+            const distSq = (x - projX) * (x - projX) + (y - projY) * (y - projY);
+            return distSq <= threshold * threshold;
         });
     }
 
@@ -365,17 +471,37 @@ class Molecule {
         );
     }
 
-    // Get total bond order for an atom
+    // Get total bond order for an atom (sum of all bond orders)
     getAtomBondCount(atomId) {
         const bonds = this.getAtomBonds(atomId);
-        return bonds.reduce((sum, bond) => sum + bond.order, 0);
+        return bonds.reduce((sum, bond) => {
+            const order = bond.order || 1; // Default to 1 if not set
+            return sum + order;
+        }, 0);
     }
 
-    // Check if an atom can form more bonds
+    // Check if an atom can form more bonds (FIXED: Uses corrected valences)
     canAddBond(atom, bondOrder = 1) {
         const currentBonds = this.getAtomBondCount(atom.id);
-        const element = getElement(atom.element);
-        return currentBonds + bondOrder <= element.valence;
+        
+        // CRITICAL FIX: Use corrected valences (periodic table JSON has wrong values!)
+        const correctValences = {
+            'O': 2, 'N': 3, 'S': 2, 'P': 3, 'F': 1, 'Cl': 1, 'Br': 1, 'I': 1,
+            'C': 4, 'H': 1, 'B': 3, 'Si': 4
+        };
+        
+        let maxValence = correctValences[atom.element];
+        if (!maxValence) {
+            const element = getElement(atom.element);
+            maxValence = element?.valence || 0;
+            // Fix wrong values from periodic table
+            if (correctValences[atom.element] && maxValence !== correctValences[atom.element]) {
+                maxValence = correctValences[atom.element];
+            }
+        }
+        
+        if (maxValence === 0) return false; // Noble gases, etc.
+        return currentBonds + bondOrder <= maxValence;
     }
 
     // Calculate distance between two atoms

@@ -12,6 +12,7 @@ let mechanismRenderer = null;
 // Smart drawing system
 let smartDrawing = null;
 let chemIntelligence = null;
+let smartChemistryLogic = null; // NEW: Smart chemistry logic for intelligent atom/bond addition
 let ghostPreviewActive = false;
 let ghostX = 0;
 let ghostY = 0;
@@ -60,6 +61,19 @@ function initializeApp() {
     console.log('🚀 Initializing Orbital App...');
     
     try {
+        // Load periodic table data (enhanced element database)
+        const periodicTableLoader = new PeriodicTableLoader();
+        periodicTableLoader.loadPeriodicTable().then(loaded => {
+            if (loaded) {
+                periodicTableLoader.mergeIntoElements();
+                console.log('✓ Periodic table data loaded and merged');
+            } else {
+                console.log('⚠️ Using existing element data');
+            }
+        }).catch(err => {
+            console.warn('Periodic table load failed, using existing data:', err);
+        });
+        
         // Initialize smart drawing system
         smartDrawing = new SmartDrawingTool();
         console.log('✓ Smart drawing system initialized');
@@ -67,6 +81,10 @@ function initializeApp() {
         // Initialize chemistry intelligence
         chemIntelligence = new ChemistryIntelligence();
         console.log('✓ Chemistry intelligence initialized');
+        
+        // Initialize smart chemistry logic
+        smartChemistryLogic = new SmartChemistryLogic(chemIntelligence, molecule);
+        console.log('✓ Smart chemistry logic initialized');
 
         // Initialize learning manager
         learningManager = new LearningManager();
@@ -203,20 +221,30 @@ function setupDrawingTools() {
             // Handle chain tool activation
             if (currentTool === 'chain' && chainToolManager) {
                 chainToolManager.startChainMode();
+                // Sync element selection with chain tool
+                if (currentElement) {
+                    chainToolManager.setElement(currentElement);
+                }
             } else if (chainToolManager) {
                 chainToolManager.stopChainMode();
             }
         });
     });
     
-    // Element selection (sidebar)
+    // Element selection (sidebar) - works with all tools including chain
     document.querySelectorAll('.element-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             document.querySelectorAll('.element-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
             currentElement = e.target.dataset.element;
             ghostElement = currentElement;
-            console.log('Element changed to:', currentElement);
+            
+            // Update chain tool if active
+            if (chainToolManager) {
+                chainToolManager.setElement(currentElement);
+            }
+            
+            console.log('Element changed to:', currentElement, '(applies to all tools)');
         });
     });
     
@@ -301,6 +329,39 @@ function setupDrawingTools() {
         smartDrawing.showGhostPreview = !smartDrawing.showGhostPreview;
         e.currentTarget.classList.toggle('active');
         console.log('Ghost preview:', smartDrawing.showGhostPreview);
+    });
+    
+    // Display option toggles
+    document.getElementById('show-implicit-h')?.addEventListener('change', (e) => {
+        if (renderer) {
+            renderer.showImplicitHydrogens = e.target.checked;
+            renderer.render(molecule);
+            console.log('Implicit H display:', renderer.showImplicitHydrogens);
+        }
+    });
+    
+    document.getElementById('show-lone-pairs')?.addEventListener('change', (e) => {
+        if (renderer) {
+            renderer.showLonePairs = e.target.checked;
+            renderer.render(molecule);
+            console.log('Lone pairs display:', renderer.showLonePairs);
+        }
+    });
+    
+    document.getElementById('show-charges')?.addEventListener('change', (e) => {
+        if (renderer) {
+            renderer.showCharges = e.target.checked;
+            renderer.render(molecule);
+            console.log('Charges display:', renderer.showCharges);
+        }
+    });
+    
+    document.getElementById('show-hybridization')?.addEventListener('change', (e) => {
+        if (renderer) {
+            renderer.showHybridization = e.target.checked;
+            renderer.render(molecule);
+            console.log('Hybridization display:', renderer.showHybridization);
+        }
     });
     
     // Legacy ring templates (old buttons)
@@ -585,6 +646,54 @@ function handleCanvasClick(e, mol, rend) {
     const y = e.clientY - rect.top;
     
     const clickedAtom = mol.getAtomAtPosition(x, y, 20);
+    const clickedBond = mol.getBondAtPosition(x, y, 10);
+    
+    // SMART: Handle clicking on bond with atom tool - insert atom into bond intelligently
+    if (clickedBond && currentTool === 'atom' && smartChemistryLogic) {
+        const elementToPlace = currentElement || 'C';
+        const newAtom = smartChemistryLogic.smartAddAtom(
+            elementToPlace, 
+            clickedBond, 
+            mol, 
+            x, 
+            y, 
+            currentBondOrder
+        );
+        
+        if (newAtom) {
+            updateMoleculeProperties();
+            rend.render(mol);
+            if (undoRedoManager) {
+                undoRedoManager.saveState(mol);
+            }
+            console.log(`✨ Smart atom insertion: ${elementToPlace} added to bond`);
+            return;
+        }
+    }
+    
+    // Handle bond clicking to cycle bond order (works in bond tool or when not inserting)
+    if (clickedBond && currentTool !== 'erase' && currentTool !== 'atom') {
+        // Cycle bond order: 1 → 2 → 3 → 1
+        const newOrder = clickedBond.order >= 3 ? 1 : clickedBond.order + 1;
+        mol.changeBondOrder(clickedBond.id, newOrder);
+        
+        // Update affected atoms
+        const atom1 = mol.getAtomById(clickedBond.atom1);
+        const atom2 = mol.getAtomById(clickedBond.atom2);
+        if (atom1) mol.updateAtomProperties(atom1);
+        if (atom2) mol.updateAtomProperties(atom2);
+        
+        updateMoleculeProperties();
+        rend.render(mol);
+        
+        // Save undo state
+        if (undoRedoManager) {
+            undoRedoManager.saveState(mol);
+        }
+        
+        console.log(`Bond order changed to ${newOrder}`);
+        return;
+    }
     
     // Handle selection with Ctrl+click
     if (e.ctrlKey || e.metaKey) {
@@ -611,7 +720,31 @@ function handleCanvasClick(e, mol, rend) {
                     bondStartAtom = clickedAtom;
                     console.log('Bond start:', bondStartAtom.id);
                 } else if (bondStartAtom !== clickedAtom) {
-                    mol.addBond(bondStartAtom.id, clickedAtom.id, currentBondOrder);
+                    // SMART: Use selected element if not carbon (e.g., O, N, etc.)
+                    // If bond tool is active and we have a selected element, use it
+                    const elementToUse = currentElement && currentElement !== 'C' ? currentElement : null;
+                    
+                    if (elementToUse && smartChemistryLogic) {
+                        // Insert element between atoms intelligently
+                        const newAtom = smartChemistryLogic.addAtomToAtom(
+                            elementToUse,
+                            bondStartAtom,
+                            mol,
+                            x,
+                            y,
+                            currentBondOrder
+                        );
+                        if (newAtom) {
+                            // Also connect to clicked atom
+                            mol.addBond(newAtom.id, clickedAtom.id, currentBondOrder);
+                            mol.updateAtomProperties(newAtom);
+                            mol.updateAtomProperties(clickedAtom);
+                        }
+                    } else {
+                        // Standard bond creation
+                        mol.addBond(bondStartAtom.id, clickedAtom.id, currentBondOrder);
+                    }
+                    
                     bondStartAtom = null;
                     updateMoleculeProperties();
                     rend.render(mol);
@@ -677,27 +810,63 @@ function handleCanvasClick(e, mol, rend) {
 }
 
 function handleAtomTool(x, y, clickedAtom, mol, rend) {
-    if (clickedAtom) {
-        // Clicked on existing atom - use smart placement
-        const predicted = smartDrawing.predictNextPosition(clickedAtom, mol, x, y);
-        const newAtom = mol.addAtom(currentElement, predicted.x, predicted.y);
-        mol.addBond(clickedAtom.id, newAtom.id, currentBondOrder);
-        console.log('Smart atom placed and connected');
-        
-        // Auto-calculate formal charges
-        clickedAtom.charge = chemIntelligence.calculateFormalCharge(clickedAtom, mol);
-        newAtom.charge = chemIntelligence.calculateFormalCharge(newAtom, mol);
-    } else {
-        // Empty space - place atom
-        const newAtom = mol.addAtom(currentElement, x, y);
-        console.log('Atom placed:', newAtom.id);
-    }
+    // Use selected element (currentElement) - defaults to 'C' if not set
+    const elementToPlace = currentElement || 'C';
     
-    // Validate molecule and show errors
-    if (showValenceErrors) {
-        const errors = chemIntelligence.validateMolecule(mol);
-        if (errors.length > 0) {
-            console.warn('Valence errors detected:', errors);
+    // SMART: Use smart chemistry logic for intelligent atom placement
+    if (smartChemistryLogic) {
+        let newAtom;
+        
+        if (clickedAtom) {
+            // Clicked on existing atom (including chain atoms) - use smart chemistry logic
+            // This works great for adding O, N, etc. to carbon chains!
+            newAtom = smartChemistryLogic.addAtomToAtom(
+                elementToPlace,
+                clickedAtom,
+                mol,
+                x,
+                y,
+                currentBondOrder
+            );
+            
+            if (newAtom) {
+                console.log(`✨ Smart ${elementToPlace} atom placed and connected to ${clickedAtom.element}`);
+                
+                // Auto-calculate formal charges for both atoms
+                if (chemIntelligence) {
+                    clickedAtom.charge = chemIntelligence.calculateFormalCharge(clickedAtom, mol);
+                    newAtom.charge = chemIntelligence.calculateFormalCharge(newAtom, mol);
+                }
+            } else {
+                console.warn(`⚠️ Could not add ${elementToPlace} to ${clickedAtom.element} - valence exceeded?`);
+            }
+        } else {
+            // Empty space - place atom with selected element
+            newAtom = mol.addAtom(elementToPlace, x, y);
+            console.log(`${elementToPlace} atom placed:`, newAtom.id);
+        }
+        
+        // Validate molecule and show errors
+        if (showValenceErrors && newAtom) {
+            const errors = chemIntelligence.validateMolecule(mol);
+            if (errors.length > 0) {
+                console.warn('Valence errors detected:', errors);
+            }
+        }
+    } else {
+        // Fallback to old method if smart logic not available
+        if (clickedAtom) {
+            const predicted = smartDrawing.predictNextPosition(clickedAtom, mol, x, y);
+            const newAtom = mol.addAtom(elementToPlace, predicted.x, predicted.y);
+            mol.addBond(clickedAtom.id, newAtom.id, currentBondOrder);
+            console.log(`Smart ${elementToPlace} atom placed and connected`);
+            
+            // Auto-calculate formal charges
+            clickedAtom.charge = chemIntelligence.calculateFormalCharge(clickedAtom, mol);
+            newAtom.charge = chemIntelligence.calculateFormalCharge(newAtom, mol);
+        } else {
+            const newAtom = mol.addAtom(elementToPlace, x, y);
+            console.log(`${elementToPlace} atom placed:`, newAtom.id);
         }
     }
     
@@ -918,12 +1087,37 @@ function handleMouseUp(e, mol, rend) {
 
     let endAtom = mol.getAtomAtPosition(x, y, 20);
     if (!endAtom && currentTool === 'bond') {
-        const predicted = smartDrawing.predictNextPosition(bondStartAtom, mol, x, y);
-        endAtom = mol.addAtom('C', predicted.x, predicted.y);
+        // SMART: Use selected element if not carbon (respects element selection)
+        const elementToUse = currentElement || 'C';
+        
+        if (smartChemistryLogic) {
+            const predicted = smartDrawing.predictNextPosition(bondStartAtom, mol, x, y);
+            endAtom = smartChemistryLogic.addAtomToAtom(
+                elementToUse,
+                bondStartAtom,
+                mol,
+                predicted.x,
+                predicted.y,
+                currentBondOrder
+            );
+        } else {
+            // Fallback
+            const predicted = smartDrawing.predictNextPosition(bondStartAtom, mol, x, y);
+            endAtom = mol.addAtom(elementToUse, predicted.x, predicted.y);
+        }
     }
 
     if (endAtom && endAtom !== bondStartAtom) {
-        mol.addBond(bondStartAtom.id, endAtom.id, currentBondOrder);
+        // Only add bond if it wasn't already added by smart logic
+        const existingBond = mol.bonds.find(b => 
+            (b.atom1 === bondStartAtom.id && b.atom2 === endAtom.id) ||
+            (b.atom1 === endAtom.id && b.atom2 === bondStartAtom.id)
+        );
+        
+        if (!existingBond) {
+            mol.addBond(bondStartAtom.id, endAtom.id, currentBondOrder);
+        }
+        
         mol.updateAtomProperties(bondStartAtom);
         mol.updateAtomProperties(endAtom);
     } else if (autoBondStart) {

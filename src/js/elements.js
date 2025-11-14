@@ -111,6 +111,204 @@ const ELEMENTS = {
         radius: 15,
         lonePairs: 1,
         commonHybridizations: ['sp3']
+    },
+    'B': {
+        name: 'Boron',
+        symbol: 'B',
+        valence: 3,
+        electronegativity: 2.04,
+        atomicMass: 10.811,
+        color: '#FFB5B5',
+        radius: 12,
+        lonePairs: 0,
+        commonHybridizations: ['sp2', 'sp3']
+    },
+    'Si': {
+        name: 'Silicon',
+        symbol: 'Si',
+        valence: 4,
+        electronegativity: 1.90,
+        atomicMass: 28.085,
+        color: '#F0C8A0',
+        radius: 18,
+        lonePairs: 0,
+        commonHybridizations: ['sp3']
+    },
+    'Li': {
+        name: 'Lithium',
+        symbol: 'Li',
+        valence: 1,
+        electronegativity: 0.98,
+        atomicMass: 6.941,
+        color: '#CC80FF',
+        radius: 12,
+        lonePairs: 0,
+        commonHybridizations: ['s']
+    },
+    'Na': {
+        name: 'Sodium',
+        symbol: 'Na',
+        valence: 1,
+        electronegativity: 0.93,
+        atomicMass: 22.990,
+        color: '#AB5CF2',
+        radius: 16,
+        lonePairs: 0,
+        commonHybridizations: ['s']
+    },
+    'K': {
+        name: 'Potassium',
+        symbol: 'K',
+        valence: 1,
+        electronegativity: 0.82,
+        atomicMass: 39.098,
+        color: '#8F40D4',
+        radius: 20,
+        lonePairs: 0,
+        commonHybridizations: ['s']
+    },
+    'Mg': {
+        name: 'Magnesium',
+        symbol: 'Mg',
+        valence: 2,
+        electronegativity: 1.31,
+        atomicMass: 24.305,
+        color: '#8AFF00',
+        radius: 14,
+        lonePairs: 0,
+        commonHybridizations: ['sp']
+    },
+    'Ca': {
+        name: 'Calcium',
+        symbol: 'Ca',
+        valence: 2,
+        electronegativity: 1.00,
+        atomicMass: 40.078,
+        color: '#3DFF00',
+        radius: 18,
+        lonePairs: 0,
+        commonHybridizations: ['sp']
+    },
+    'Al': {
+        name: 'Aluminum',
+        symbol: 'Al',
+        valence: 3,
+        electronegativity: 1.61,
+        atomicMass: 26.982,
+        color: '#BFA6A6',
+        radius: 16,
+        lonePairs: 0,
+        commonHybridizations: ['sp2', 'sp3']
+    },
+    'Fe': {
+        name: 'Iron',
+        symbol: 'Fe',
+        valence: 2,
+        electronegativity: 1.83,
+        atomicMass: 55.845,
+        color: '#E06633',
+        radius: 14,
+        lonePairs: 0,
+        commonHybridizations: ['sp3']
+    },
+    'Cu': {
+        name: 'Copper',
+        symbol: 'Cu',
+        valence: 2,
+        electronegativity: 1.90,
+        atomicMass: 63.546,
+        color: '#C88033',
+        radius: 13,
+        lonePairs: 0,
+        commonHybridizations: ['sp3']
+    },
+    'Zn': {
+        name: 'Zinc',
+        symbol: 'Zn',
+        valence: 2,
+        electronegativity: 1.65,
+        atomicMass: 65.380,
+        color: '#7D80B0',
+        radius: 13,
+        lonePairs: 0,
+        commonHybridizations: ['sp3']
+    },
+    'Se': {
+        name: 'Selenium',
+        symbol: 'Se',
+        valence: 2,
+        electronegativity: 2.55,
+        atomicMass: 78.971,
+        color: '#FFA100',
+        radius: 17,
+        lonePairs: 2,
+        commonHybridizations: ['sp2', 'sp3']
+    },
+    'Te': {
+        name: 'Tellurium',
+        symbol: 'Te',
+        valence: 2,
+        electronegativity: 2.10,
+        atomicMass: 127.60,
+        color: '#D47A00',
+        radius: 19,
+        lonePairs: 2,
+        commonHybridizations: ['sp3']
+    },
+    'As': {
+        name: 'Arsenic',
+        symbol: 'As',
+        valence: 3,
+        electronegativity: 2.18,
+        atomicMass: 74.922,
+        color: '#BD80E3',
+        radius: 16,
+        lonePairs: 1,
+        commonHybridizations: ['sp3']
+    },
+    'Sb': {
+        name: 'Antimony',
+        symbol: 'Sb',
+        valence: 3,
+        electronegativity: 2.05,
+        atomicMass: 121.760,
+        color: '#9B63B6',
+        radius: 18,
+        lonePairs: 1,
+        commonHybridizations: ['sp3']
+    },
+    'He': {
+        name: 'Helium',
+        symbol: 'He',
+        valence: 0,
+        electronegativity: 0.0,
+        atomicMass: 4.003,
+        color: '#D9FFFF',
+        radius: 8,
+        lonePairs: 0,
+        commonHybridizations: ['s']
+    },
+    'Ne': {
+        name: 'Neon',
+        symbol: 'Ne',
+        valence: 0,
+        electronegativity: 0.0,
+        atomicMass: 20.180,
+        color: '#B3E3F5',
+        radius: 10,
+        lonePairs: 0,
+        commonHybridizations: ['s']
+    },
+    'Ar': {
+        name: 'Argon',
+        symbol: 'Ar',
+        valence: 0,
+        electronegativity: 0.0,
+        atomicMass: 39.948,
+        color: '#80D1E3',
+        radius: 12,
+        lonePairs: 0,
+        commonHybridizations: ['s']
     }
 };
 
