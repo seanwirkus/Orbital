@@ -8,6 +8,7 @@ class MechanismRenderer {
         this.currentStep = 0;
         this.animationSpeed = 1000; // ms per step
         this.scaleFactor = 1.0;
+        this.activeStep = 0;
     }
     
     // Create SVG canvas for mechanism
@@ -72,7 +73,7 @@ class MechanismRenderer {
     }
     
     // Render full mechanism from database
-    renderMechanism(reactionData, moleculeData) {
+    renderMechanism(reactionData, moleculeData, options = {}) {
         try {
             if (!reactionData || !reactionData.mechanism) {
                 console.error('Invalid reaction data');
@@ -80,7 +81,11 @@ class MechanismRenderer {
             }
             
             this.currentMechanism = reactionData;
-            this.initializeSVG(2000, 900); // Larger canvas for bigger molecules
+            this.currentOptions = options;
+            const canvasWidth = 2000;
+            const canvasHeight = 1000;
+            this.initializeSVG(canvasWidth, canvasHeight); // Larger canvas for bigger molecules
+            this.activeStep = Math.max(0, options.activeStep || 0);
             
             const { mechanism, name } = reactionData;
             
@@ -112,8 +117,21 @@ class MechanismRenderer {
                 this.drawMoleculeStructure(moleculeData.product, currentX, yCenter, 'Product', 3.5);
             }
             
+            // Draw mechanism electron flow overview beneath main arrow
+            if (mechanism && mechanism.length > 0) {
+                const arrowBaseY = yCenter + 260;
+                const availableWidth = canvasWidth - 400;
+                const arrowSpacing = Math.min(360, Math.max(180, availableWidth / Math.max(1, mechanism.length)));
+                let arrowStart = startX;
+                mechanism.forEach((step, index) => {
+                    const stepStart = arrowStart + index * arrowSpacing * 0.9;
+                    this.drawMechanismArrow(stepStart, arrowBaseY, stepStart + arrowSpacing * 0.6, arrowBaseY, step, index);
+                });
+            }
+
             // Add mechanism steps description at bottom
             this.addMechanismSteps(reactionData, 50, 480);
+            this.setActiveStep(this.activeStep, true);
             
             console.log('✓ Mechanism rendered successfully');
         } catch (error) {
@@ -371,6 +389,7 @@ class MechanismRenderer {
         const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
         group.setAttribute('class', `mechanism-arrow step-${stepIndex}`);
         group.setAttribute('opacity', '0'); // Start invisible for animation
+        group.dataset.stepIndex = stepIndex;
         
         // Choose color based on step type
         const color = this.getArrowColor(step.electronFlow[0]?.type);
@@ -634,7 +653,43 @@ class MechanismRenderer {
         
         // Animate each step in sequence
         arrows.forEach((arrow, index) => {
-            setTimeout(() => this.animateStep(index), index * this.animationSpeed);
+            setTimeout(() => {
+                this.setActiveStep(index);
+                this.animateStep(index);
+            }, index * this.animationSpeed);
+        });
+    }
+
+    setActiveStep(stepIndex = 0, suppressAnimation = false) {
+        if (!this.svg) return;
+        const totalSteps = this.currentMechanism?.mechanism?.length || 0;
+        if (totalSteps === 0) return;
+
+        this.activeStep = Math.max(0, Math.min(stepIndex, totalSteps - 1));
+        const arrows = this.svg.querySelectorAll('.mechanism-arrow');
+        arrows.forEach((arrow, index) => {
+            const isActive = index === this.activeStep;
+            arrow.classList.toggle('active', isActive);
+            arrow.style.transition = isActive ? 'opacity 0.3s ease' : 'opacity 0.3s ease';
+            arrow.setAttribute('opacity', isActive ? '1' : '0.2');
+
+            if (isActive) {
+                const flows = arrow.querySelectorAll('.electron-flow-arrow');
+                flows.forEach(path => {
+                    const pathLength = path.getTotalLength ? path.getTotalLength() : 200;
+                    path.style.strokeDasharray = pathLength;
+                    path.style.strokeDashoffset = suppressAnimation ? 0 : pathLength;
+                    if (!suppressAnimation) {
+                        requestAnimationFrame(() => {
+                            path.style.transition = 'stroke-dashoffset 0.6s ease-out';
+                            path.style.strokeDashoffset = '0';
+                        });
+                    } else {
+                        path.style.transition = 'none';
+                        path.style.strokeDashoffset = '0';
+                    }
+                });
+            }
         });
     }
     

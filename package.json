@@ -1,0 +1,29 @@
+{
+  "name": "orbital-github",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "lint": "eslint src/js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/seanwirkus/Orbital.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/seanwirkus/Orbital/issues"
+  },
+  "homepage": "https://github.com/seanwirkus/Orbital#readme",
+  "devDependencies": {
+    "eslint": "^9.39.1",
+    "globals": "^16.5.0"
+  }
+}
