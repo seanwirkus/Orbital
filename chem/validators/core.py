@@ -44,7 +44,26 @@ def validate_charge_balance(molecule: Molecule) -> None:
         raise ValueError(f"Molecule not charge balanced: total charge {total_charge}")
 
 
-def _find_cycles(molecule: Molecule, max_length: int = 8) -> List[List[int]]:
+def _canonicalize_cycle(cycle: List[int]) -> Tuple[int, ...]:
+    """Return a canonical representation of a cycle regardless of start or direction."""
+
+    if not cycle:
+        return tuple()
+
+    # Generate all rotations of the cycle in both forward and reverse directions.
+    rotations = []
+    n = len(cycle)
+    for i in range(n):
+        rotations.append(tuple(cycle[i:] + cycle[:i]))
+
+    reversed_cycle = list(reversed(cycle))
+    for i in range(n):
+        rotations.append(tuple(reversed_cycle[i:] + reversed_cycle[:i]))
+
+    return min(rotations)
+
+
+def _find_cycles(molecule: Molecule, max_length: int | None = None) -> List[List[int]]:
     adjacency: Dict[int, List[Tuple[int, int]]] = defaultdict(list)
     for idx, bond in enumerate(molecule.bonds):
         a, b = bond.atoms
@@ -53,26 +72,27 @@ def _find_cycles(molecule: Molecule, max_length: int = 8) -> List[List[int]]:
 
     cycles: Set[Tuple[int, ...]] = set()
 
+    max_allowed = max_length or len(molecule.atoms)
+
     def dfs(start: int, current: int, path: List[int], used_bonds: Set[int]) -> None:
         for neighbor, bond_idx in adjacency[current]:
             if bond_idx in used_bonds:
                 continue
             if neighbor == start and len(path) >= 3:
-                cycle = path + [start]
-                canonical = tuple(sorted(cycle))
-                if canonical not in cycles:
+                canonical = _canonicalize_cycle(path)
+                if canonical:
                     cycles.add(canonical)
                 continue
             if neighbor in path:
                 continue
-            if len(path) >= max_length:
+            if len(path) >= max_allowed:
                 continue
             dfs(start, neighbor, path + [neighbor], used_bonds | {bond_idx})
 
     for atom_index in range(len(molecule.atoms)):
         dfs(atom_index, atom_index, [atom_index], set())
 
-    return [list(cycle[:-1]) for cycle in cycles]
+    return [list(cycle) for cycle in cycles]
 
 
 def detect_aromatic_rings(molecule: Molecule) -> List[List[int]]:
