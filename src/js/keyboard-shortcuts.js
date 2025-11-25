@@ -43,19 +43,17 @@ class KeyboardShortcutManager {
                 updateTab();
             });
         });
-        
+
         // Initial update
         updateTab();
-        
-        // Periodically sync (fallback)
-        setInterval(updateTab, 500);
     }
-    
+
     setupShortcuts() {
         // Tool selection shortcuts
         this.registerShortcut('a', [], () => this.setTool('atom'), '🔵 Atom Tool (A)');
         this.registerShortcut('b', [], () => this.setTool('bond'), '🔗 Bond Tool (B)');
         this.registerShortcut('c', [], () => this.setTool('chain'), '⛓️ Chain Tool (C)');
+        this.registerShortcut('s', [], () => this.setTool('select'), '👆 Select Tool (S)');
         this.registerShortcut('e', [], () => this.setTool('erase'), '🗑️ Erase Tool (E)');
         
         // Editing shortcuts
