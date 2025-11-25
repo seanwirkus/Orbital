@@ -151,19 +151,11 @@ class ChemistryIntelligence {
         
         const bonds = molecule.getAtomBonds(atom.id);
         let bondSum = 0;
-        let explicitH = 0;
-        
-        // Calculate total bonding electrons and count explicit hydrogens
+
+        // Calculate total bond order (includes hydrogens)
         bonds.forEach(bond => {
             const bondOrder = bond.order || 1;
             bondSum += bondOrder;
-            
-            // Count explicit hydrogen atoms
-            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
-            const otherAtom = molecule.getAtomById(otherId);
-            if (otherAtom && otherAtom.element === 'H') {
-                explicitH++;
-            }
         });
         
         // Account for formal charge in implicit H calculation
@@ -175,10 +167,11 @@ class ChemistryIntelligence {
         
         // Calculate nonbonding electrons (lone pairs)
         // Available electrons = V - charge
-        // Used for bonding = (bondSum * 2) / 2 + explicitH = bondSum + explicitH
-        // Remaining = (V - charge) - (bondSum + explicitH)
+        // Used for bonding = one electron per bond order unit (bondSum already
+        // includes hydrogens through their bonds)
+        // Remaining = (V - charge) - bondSum
         const effectiveElectrons = V - currentCharge;
-        const usedForBonding = bondSum + explicitH;
+        const usedForBonding = bondSum;
         const remainingElectrons = effectiveElectrons - usedForBonding;
         const lonePairs = Math.max(0, Math.floor(remainingElectrons / 2));
         const nonbondingElectrons = lonePairs * 2;
@@ -201,23 +194,15 @@ class ChemistryIntelligence {
         
         const bonds = molecule.getAtomBonds(atom.id);
         let bondSum = 0;
-        let explicitH = 0;
-        
+
         bonds.forEach(bond => {
             const bondOrder = bond.order || 1;
             bondSum += bondOrder;
-            
-            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
-            const otherAtom = molecule.getAtomById(otherId);
-            if (otherAtom && otherAtom.element === 'H') {
-                explicitH++;
-            }
         });
         
         const charge = atom.charge || 0;
         const effectiveElectrons = V - charge;
-        const usedForBonding = bondSum + explicitH;
-        const remainingElectrons = effectiveElectrons - usedForBonding;
+        const remainingElectrons = effectiveElectrons - bondSum;
         
         return Math.max(0, Math.floor(remainingElectrons / 2));
     }
