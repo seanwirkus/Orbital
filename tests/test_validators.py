@@ -54,3 +54,18 @@ def test_aromatic_detection_from_structure():
     rings = detect_aromatic_rings(benzene)
     assert len(rings) == 1
     assert len(rings[0]) == 6
+
+
+def test_aromatic_detection_large_ring():
+    macrocycle = Molecule()
+    atoms = [macrocycle.add_atom(Atom(symbol="C")) for _ in range(10)]
+
+    for i in range(10):
+        a = atoms[i]
+        b = atoms[(i + 1) % 10]
+        macrocycle.add_bond(Bond((a, b), order=1.5, aromatic=False))
+
+    rings = detect_aromatic_rings(macrocycle)
+
+    assert rings == [list(range(10))]
+    assert all(atom.metadata.get("aromatic") for atom in macrocycle.atoms)
