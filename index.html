@@ -5,10 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orbital - Organic Chemistry Simulator</title>
     <link rel="stylesheet" href="src/css/styles.css">
+    <link type="text/css" rel="stylesheet" href="//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,700italic,400,300,700" />
 </head>
 <body>
     <div class="app-container">
-        <header class="header">
+        <header class="header" style="display: none;">
             <div class="header-content">
                 <h1>⚛️ Orbital</h1>
                 <p class="subtitle">All-in-One Organic Chemistry Simulator</p>
@@ -52,9 +53,11 @@
                     <section class="tool-section">
                         <h3>Bonds</h3>
                         <div class="bond-controls">
-                            <button class="bond-btn active" data-bond="1" id="sidebar-bond-single">━</button>
-                            <button class="bond-btn" data-bond="2" id="sidebar-bond-double">═</button>
-                            <button class="bond-btn" data-bond="3" id="sidebar-bond-triple">≡</button>
+                            <button class="bond-btn active" data-bond="1" data-stereo="none" id="sidebar-bond-single" title="Single bond">━</button>
+                            <button class="bond-btn" data-bond="2" data-stereo="none" id="sidebar-bond-double" title="Double bond">═</button>
+                            <button class="bond-btn" data-bond="3" data-stereo="none" id="sidebar-bond-triple" title="Triple bond">≡</button>
+                            <button class="bond-btn" data-bond="1" data-stereo="wedge" id="sidebar-bond-wedge" title="Wedge bond (up)">△</button>
+                            <button class="bond-btn" data-bond="1" data-stereo="dash" id="sidebar-bond-dash" title="Dash bond (down)">▽</button>
                         </div>
                     </section>
 
@@ -68,27 +71,33 @@
                     </section>
 
                     <section class="tool-section">
-                        <h3>Display</h3>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="show-implicit-h" checked>
-                            <span>Implicit hydrogens</span>
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="show-lone-pairs">
-                            <span>Lone pairs</span>
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="show-charges">
-                            <span>Charges</span>
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="show-hybridization">
-                            <span>Hybridization labels</span>
-                        </label>
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="show-valence-errors" checked>
-                            <span>Valence warnings</span>
-                        </label>
+                        <h3>Display Options</h3>
+                        <div class="display-grid">
+                            <button class="display-toggle active" id="toggle-skeletal" data-option="skeletal" title="Skeletal notation">
+                                <span class="display-icon">⚛</span>
+                                <span class="display-label">Skeletal</span>
+                            </button>
+                            <button class="display-toggle" id="show-implicit-h" data-option="implicitH" title="Show implicit hydrogens">
+                                <span class="display-icon">H</span>
+                                <span class="display-label">Hydrogens</span>
+                            </button>
+                            <button class="display-toggle" id="show-lone-pairs" data-option="lonePairs" title="Show lone pairs">
+                                <span class="display-icon">⚫⚫</span>
+                                <span class="display-label">Lone Pairs</span>
+                            </button>
+                            <button class="display-toggle" id="show-charges" data-option="charges" title="Show charges">
+                                <span class="display-icon">δ</span>
+                                <span class="display-label">Charges</span>
+                            </button>
+                            <button class="display-toggle" id="show-hybridization" data-option="hybridization" title="Show hybridization">
+                                <span class="display-icon">sp³</span>
+                                <span class="display-label">Hybrid</span>
+                            </button>
+                            <button class="display-toggle active" id="show-valence-errors" data-option="valenceWarnings" title="Show valence warnings">
+                                <span class="display-icon">⚠</span>
+                                <span class="display-label">Warnings</span>
+                            </button>
+                        </div>
                     </section>
 
                     <section class="tool-section">
@@ -135,23 +144,33 @@
                                     <button class="tool-btn active" id="tool-atom" title="Place atoms (A)">⚛️ Atom</button>
                                     <button class="tool-btn" id="tool-bond" title="Draw bonds (B)">━ Bond</button>
                                     <button class="tool-btn" id="tool-chain" title="Chain drawing (C)">〰️ Chain</button>
+                                    <button class="tool-btn" id="tool-select" title="Select (S)">👆 Select</button>
                                     <button class="tool-btn" id="tool-erase" title="Erase (E)">🗑️ Erase</button>
                                 </div>
                             </div>
                             <div class="toolbar-group">
                                 <span class="toolbar-label">Groups</span>
-                                <div class="group-btn-group">
-                                    <button class="group-btn" id="group-oh">OH</button>
-                                    <button class="group-btn" id="group-nh2">NH₂</button>
-                                    <button class="group-btn" id="group-cooh">COOH</button>
-                                    <button class="group-btn" id="group-cho">CHO</button>
-                                </div>
+                            <div class="group-btn-group">
+                                <button class="group-btn" id="group-oh" data-group="OH">OH</button>
+                                <button class="group-btn" id="group-nh2" data-group="NH2">NH₂</button>
+                                <button class="group-btn" id="group-cooh" data-group="COOH">COOH</button>
+                                <button class="group-btn" id="group-cho" data-group="CHO">CHO</button>
+                            </div>
                             </div>
                             <div class="toolbar-group">
                                 <span class="toolbar-label">Options</span>
                                 <div class="option-btn-group">
                                     <button class="option-btn active" id="option-snap" title="Snap to angles">📐 Snap</button>
                                     <button class="option-btn active" id="option-preview" title="Ghost preview">👻 Preview</button>
+                                </div>
+                            </div>
+                            <div class="toolbar-group">
+                                <span class="toolbar-label">Zoom</span>
+                                <div class="zoom-btn-group">
+                                    <button class="zoom-btn" id="zoom-in" title="Zoom in (+)">🔍+</button>
+                                    <button class="zoom-btn" id="zoom-out" title="Zoom out (-)">🔍-</button>
+                                    <button class="zoom-btn" id="zoom-reset" title="Reset zoom (0)">⌂</button>
+                                    <button class="zoom-btn" id="zoom-fit" title="Fit to screen">⛶</button>
                                 </div>
                             </div>
                         </div>
@@ -174,7 +193,9 @@
                         </div>
 
                         <div class="canvas-container">
-                            <div class="canvas-wrapper"><canvas id="molecule-canvas" width="800" height="600"></canvas></div>
+                            <div class="canvas-wrapper sketcher" id="molpad-container">
+                                <!-- MolPad will be initialized here -->
+                            </div>
                             <aside class="properties-panel">
                                 <h3 class="panel-title">Molecule Properties</h3>
                                 <div class="properties-card">
@@ -313,10 +334,12 @@
             return false;
         };
     </script>
+    <!-- OLD SYSTEM (DISABLED - Commented out to avoid conflicts) -->
+    <!--
     <script src="src/js/elements.js"></script>
     <script src="src/js/periodic-table-loader.js"></script>
     <script src="src/js/geometry.js"></script>
-    <script src="src/js/chemistry-intelligence.js"></script>
+    <!-- <script src="src/js/chemistry-intelligence.js"></script> MOVED -->
     <script src="src/js/smart-chemistry-logic.js"></script>
     <script src="src/js/smart-drawing.js"></script>
     <script src="src/js/clipboard.js"></script>
@@ -339,6 +362,65 @@
     <script src="src/js/reaction-engine.js"></script>
     <script src="src/js/reaction-manager.js"></script>
     <script src="src/js/reaction-ui.js"></script>
+    <script src="src/js/toolbar-state-manager.js"></script>
     <script src="src/js/main.js"></script>
+    -->
+    
+    <!-- MolView Integration (GPLv3) -->
+    <!-- jQuery required by MolView -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- MolView Chemistry Core - Load in correct order -->
+    <!-- Util dependencies -->
+    <script src="src/js/molview/util/common.js"></script>
+    <script src="src/js/molview/util/vec2.js"></script>
+    <script src="src/js/molview/util/set.js"></script>
+    <script src="src/js/molview/util/map.js"></script>
+    <script src="src/js/molview/util/pool.js"></script>
+    
+    <!-- Chem prototype extensions -->
+    <script src="src/js/molview/chem/prototype.js"></script>
+    
+    <!-- Chem core -->
+    <script src="src/js/molview/chem/chem/element.js"></script>
+    <script src="src/js/molview/chem/chem/struct.js"></script>
+    <script src="src/js/molview/chem/chem/molfile.js"></script>
+    <script src="src/js/molview/chem/chem/sgroup.js"></script>
+    <script src="src/js/molview/chem/chem/struct_valence.js"></script>
+    <script src="src/js/molview/chem/chem/dfs.js"></script>
+    <script src="src/js/molview/chem/chem/cis_trans.js"></script>
+    <script src="src/js/molview/chem/chem/stereocenters.js"></script>
+    <script src="src/js/molview/chem/chem/smiles.js"></script>
+    
+    <!-- MolPad (MolView's drawing system) - Load in correct order -->
+    <script src="src/js/molview/molpad/Data.js"></script>
+    <script src="src/js/molview/molpad/Utility.js"></script>
+    <script src="src/js/molview/molpad/MPPoint.js"></script>
+    <script src="src/js/molview/molpad/MPLine.js"></script>
+    <script src="src/js/molview/molpad/MPFragments.js"></script>
+    <script src="src/js/molview/molpad/MPAtom.js"></script>
+    <script src="src/js/molview/molpad/MPAtom_calc.js"></script>
+    <script src="src/js/molview/molpad/MPAtom_handler.js"></script>
+    <script src="src/js/molview/molpad/MPBond.js"></script>
+    <script src="src/js/molview/molpad/MPBond_calc.js"></script>
+    <script src="src/js/molview/molpad/MPBond_handler.js"></script>
+    <!-- MolPad must be defined before MPSettings (which extends its prototype) -->
+    <script src="src/js/molview/molpad/MolPad.js"></script>
+    <script src="src/js/molview/molpad/MPSettings.js"></script>
+    <script src="src/js/molview/molpad/MPMolecule.js"></script>
+    <script src="src/js/molview/molpad/MPSelection.js"></script>
+    <script src="src/js/molview/molpad/MPGraphics.js"></script>
+    <script src="src/js/molview/molpad/MPEvents.js"></script>
+    
+    <!-- Chemistry Intelligence (Shared) -->
+    <script src="src/js/chemistry-intelligence.js"></script>
+    
+    <!-- Orbital Refactored Architecture -->
+    <script src="src/js/orbital-renderer.js"></script>
+    <script src="src/js/orbital-ui.js"></script>
+    <script src="src/js/orbital-manager.js"></script>
+    
+    <!-- Legacy - Remove after verification -->
+    <!-- <script src="src/js/app-molview.js"></script> -->
 </body>
 </html>

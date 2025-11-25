@@ -17,8 +17,38 @@ class KeyboardShortcutManager {
             cmd: false
         };
         this.currentTool = 'atom'; // atom, bond, chain, erase
+        this.currentTab = 'draw'; // Track current tab
         this.setupShortcuts();
         this.setupKeyListener();
+        this.setupTabTracking();
+    }
+    
+    setupTabTracking() {
+        // Track tab changes by listening to global currentTab or button clicks
+        const updateTab = () => {
+            // Try to get current tab from global variable or active tab button
+            if (typeof currentTab !== 'undefined') {
+                this.currentTab = currentTab;
+            } else {
+                const activeTab = document.querySelector('.tab-btn.active');
+                if (activeTab) {
+                    this.currentTab = activeTab.dataset.tab || activeTab.textContent.toLowerCase().trim() || 'draw';
+                }
+            }
+        };
+        
+        // Update on tab button clicks
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                updateTab();
+            });
+        });
+        
+        // Initial update
+        updateTab();
+        
+        // Periodically sync (fallback)
+        setInterval(updateTab, 500);
     }
     
     setupShortcuts() {
@@ -43,16 +73,22 @@ class KeyboardShortcutManager {
         this.currentTool = toolName;
         console.log(`🔧 Tool switched to: ${toolName}`);
         
-        // Update toolbar UI
-        const toolButtons = document.querySelectorAll('.tool-btn');
-        toolButtons.forEach(btn => {
-            const btnTool = btn.id.replace('tool-', '');
-            if (btnTool === toolName) {
-                btn.classList.add('active');
-            } else {
-                btn.classList.remove('active');
-            }
-        });
+        // Update toolbar UI by clicking the button
+        const toolButton = document.getElementById(`tool-${toolName}`);
+        if (toolButton) {
+            toolButton.click();
+        } else {
+            // Fallback: manual UI update
+            const toolButtons = document.querySelectorAll('.tool-btn');
+            toolButtons.forEach(btn => {
+                const btnTool = btn.id.replace('tool-', '');
+                if (btnTool === toolName) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
         
         // Handle chain tool activation
         if (toolName === 'chain' && this.chainTool) {
@@ -65,7 +101,11 @@ class KeyboardShortcutManager {
     handleSelectAll() {
         if (this.selection) {
             this.selection.selectAll();
-            console.log('✓ All atoms selected');
+            // Trigger render to show selection highlights
+            if (this.renderer) {
+                this.renderer.render(this.molecule);
+            }
+            console.log(`✓ All ${this.selection.selectedAtoms.size} atoms selected`);
         }
     }
     
@@ -158,25 +198,70 @@ class KeyboardShortcutManager {
     }
     
     handleKeyDown(event) {
-        // Update modifier keys
-        this.activeModifiers.ctrl = event.ctrlKey || event.metaKey;
-        this.activeModifiers.shift = event.shiftKey;
-        this.activeModifiers.alt = event.altKey;
-        this.activeModifiers.cmd = event.metaKey;
+        // Only handle shortcuts when on draw tab
+        if (this.currentTab !== 'draw') {
+            return;
+        }
         
-        // Don't intercept if typing in text input
+        // Don't intercept if typing in text input (allow normal text editing)
         if (this.isTextInputActive(event.target)) {
             return;
         }
         
-        const key = event.key.toLowerCase();
-        const shortcut = this.getShortcutKey(key, this.activeModifiers);
+        // Update modifier keys
+        const hasCtrl = event.ctrlKey || event.metaKey;
+        const hasShift = event.shiftKey;
+        const hasAlt = event.altKey;
         
-        if (this.shortcuts.has(shortcut)) {
-            event.preventDefault();
-            const action = this.shortcuts.get(shortcut);
-            action.callback();
-            this.showShortcutFeedback(action.label);
+        this.activeModifiers.ctrl = hasCtrl;
+        this.activeModifiers.shift = hasShift;
+        this.activeModifiers.alt = hasAlt;
+        this.activeModifiers.cmd = event.metaKey;
+        
+        // Handle Delete and Backspace specially (no modifiers)
+        const key = event.key;
+        const keyLower = key.toLowerCase();
+        
+        // Check for Delete/Backspace first (these are special keys, no modifiers)
+        if ((key === 'Delete' || key === 'Backspace') && !hasCtrl && !hasShift && !hasAlt) {
+            const shortcut = this.getShortcutKey(key, this.activeModifiers);
+            if (this.shortcuts.has(shortcut)) {
+                event.preventDefault();
+                event.stopPropagation();
+                const action = this.shortcuts.get(shortcut);
+                action.callback();
+                this.showShortcutFeedback(action.label);
+            }
+            return;
+        }
+        
+        // For letter keys, prioritize modifier combinations over single keys
+        // This ensures Ctrl+A (select all) works instead of just 'a' (atom tool)
+        if (hasCtrl || hasShift || hasAlt) {
+            // Check for modifier combinations first
+            const shortcut = this.getShortcutKey(keyLower, this.activeModifiers);
+            if (this.shortcuts.has(shortcut)) {
+                event.preventDefault();
+                event.stopPropagation();
+                const action = this.shortcuts.get(shortcut);
+                action.callback();
+                this.showShortcutFeedback(action.label);
+                return;
+            }
+        } else {
+            // No modifiers - check for single key shortcuts (tool selection)
+            // Only if it's a single letter and no modifiers
+            if (keyLower.length === 1 && /[a-z]/.test(keyLower)) {
+                const shortcut = this.getShortcutKey(keyLower, this.activeModifiers);
+                if (this.shortcuts.has(shortcut)) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const action = this.shortcuts.get(shortcut);
+                    action.callback();
+                    this.showShortcutFeedback(action.label);
+                    return;
+                }
+            }
         }
     }
     

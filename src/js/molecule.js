@@ -335,6 +335,20 @@ class Molecule {
         
         atom.charge = calculatePartialCharge(atom.element, bondInfo);
         
+        // FIXED: Suppress spurious charges on simple carbon chains (only C/H neighbours)
+        if (atom.element === 'C') {
+            const allNeighborsAreCH = bonds.every(bond => {
+                const otherAtomId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+                const otherAtom = this.getAtomById(otherAtomId);
+                if (!otherAtom) return true;
+                return otherAtom.element === 'C' || otherAtom.element === 'H';
+            });
+            
+            if (allNeighborsAreCH) {
+                atom.charge = 0;
+            }
+        }
+        
         // Validate valence
         atom.valenceValid = this.validateAtomValence(atom);
     }

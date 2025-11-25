@@ -24,6 +24,13 @@ class SelectionManager {
         }
         this.selectedAtoms.add(atomId);
         console.log(`✓ Selected atom ${atomId}`);
+        
+        // Mark atom as selected in the molecule for rendering
+        const atom = this.molecule.getAtomById(atomId);
+        if (atom) {
+            atom.isSelected = true;
+        }
+        
         this.renderSelection();
     }
 
@@ -54,17 +61,40 @@ class SelectionManager {
      */
     selectAll() {
         this.selectedAtoms.clear();
+        this.selectedBonds.clear();
+        
+        // Select all atoms
         this.molecule.atoms.forEach(atom => {
             this.selectedAtoms.add(atom.id);
         });
+        
         console.log(`✓ Selected all ${this.selectedAtoms.size} atoms`);
-        this.renderSelection();
+        
+        // Mark atoms as selected in the molecule for rendering
+        this.molecule.atoms.forEach(atom => {
+            atom.isSelected = this.selectedAtoms.has(atom.id);
+        });
+        
+        // Force immediate render with selection
+        if (this.renderer) {
+            // Cancel any pending debounced renders
+            if (this.renderer._renderTimeout) {
+                clearTimeout(this.renderer._renderTimeout);
+            }
+            // Render immediately
+            this.renderer._doRender(this.molecule);
+        }
     }
 
     /**
      * Clear all selections
      */
     clearSelection() {
+        // Clear selection flags on atoms
+        this.molecule.atoms.forEach(atom => {
+            atom.isSelected = false;
+        });
+        
         this.selectedAtoms.clear();
         this.selectedBonds.clear();
         console.log('Clear selection');
@@ -104,26 +134,47 @@ class SelectionManager {
      * Delete all selected atoms and their bonds
      */
     deleteSelected() {
-        if (this.selectedAtoms.size === 0) return;
+        // If nothing is selected, check if there's a selected atom in molecule
+        if (this.selectedAtoms.size === 0) {
+            if (this.molecule.selectedAtom) {
+                this.molecule.removeAtom(this.molecule.selectedAtom.id);
+                this.molecule.selectedAtom = null;
+                console.log('🗑️ Deleted selected atom');
+                return;
+            }
+            return;
+        }
 
         try {
-            // Get IDs to delete
+            // Get IDs to delete (make a copy since we'll be modifying the set)
             const idsToDelete = Array.from(this.selectedAtoms);
+            const deleteCount = idsToDelete.length;
 
-            // Remove atoms
-            this.molecule.atoms = this.molecule.atoms.filter(
-                atom => !idsToDelete.includes(atom.id)
-            );
+            // Clear selection first to avoid issues during deletion
+            this.selectedAtoms.clear();
+            this.selectedBonds.clear();
 
-            // Remove bonds connected to deleted atoms
-            this.molecule.bonds = this.molecule.bonds.filter(
-                bond => !idsToDelete.includes(bond.atom1) && !idsToDelete.includes(bond.atom2)
-            );
+            // Delete all atoms - removeAtom handles bond cleanup
+            // Filter to only existing atoms first
+            const existingAtomIds = idsToDelete.filter(atomId => {
+                return this.molecule.getAtomById(atomId) !== null;
+            });
 
-            this.clearSelection();
-            console.log(`🗑️ Deleted ${idsToDelete.length} atoms and connected bonds`);
+            // Delete all existing atoms
+            existingAtomIds.forEach(atomId => {
+                try {
+                    this.molecule.removeAtom(atomId);
+                } catch (err) {
+                    console.warn(`Failed to delete atom ${atomId}:`, err);
+                }
+            });
+
+            const deletedCount = existingAtomIds.length;
+            console.log(`🗑️ Deleted ${deletedCount} of ${deleteCount} selected atoms and connected bonds`);
         } catch (error) {
             console.error('Error deleting selected atoms:', error);
+            // Clear selection even on error
+            this.clearSelection();
         }
     }
 
@@ -147,36 +198,21 @@ class SelectionManager {
 
     /**
      * Render selection highlights on canvas
+     * NOTE: This triggers a full re-render to ensure selection highlights are drawn properly
      */
     renderSelection() {
-        if (!this.renderer || !this.renderer.canvas) return;
+        if (!this.renderer) return;
 
-        const ctx = this.renderer.canvas.getContext('2d');
-        if (!ctx) return;
-
-        // Draw selection highlights for atoms
-        this.selectedAtoms.forEach(atomId => {
-            const atom = this.molecule.atoms.find(a => a.id === atomId);
-            if (atom) {
-                // Draw selection circle
-                ctx.strokeStyle = this.selectionColor;
-                ctx.lineWidth = this.selectionBorderWidth;
-                ctx.globalAlpha = 0.8;
-                ctx.beginPath();
-                ctx.arc(atom.x, atom.y, 28, 0, Math.PI * 2);
-                ctx.stroke();
-
-                // Draw checkmark
-                ctx.fillStyle = this.selectionColor;
-                ctx.globalAlpha = 1;
-                ctx.font = 'bold 18px Arial';
-                ctx.textAlign = 'center';
-                ctx.textBaseline = 'middle';
-                ctx.fillText('✓', atom.x, atom.y - 22);
-
-                ctx.globalAlpha = 1;
-            }
+        // Mark all selected atoms for rendering
+        this.molecule.atoms.forEach(atom => {
+            atom.isSelected = this.selectedAtoms.has(atom.id);
         });
+
+        // Trigger full re-render (this will draw selection highlights in the paint pass)
+        if (this.renderer._renderTimeout) {
+            clearTimeout(this.renderer._renderTimeout);
+        }
+        this.renderer._doRender(this.molecule);
     }
 
     /**

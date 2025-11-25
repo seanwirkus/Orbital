@@ -3,34 +3,78 @@
 
 class ChemistryIntelligence {
     constructor() {
-        // Standard valences for common elements
+        // Standard valences for common elements (bonding capacity)
         this.standardValence = {
             'H': 1, 'C': 4, 'N': 3, 'O': 2, 'F': 1,
             'P': 3, 'S': 2, 'Cl': 1, 'Br': 1, 'I': 1,
             'B': 3, 'Si': 4, 'Li': 1, 'Na': 1, 'K': 1,
             'Mg': 2, 'Ca': 2, 'Al': 3, 'Fe': 2, 'Cu': 2,
             'Zn': 2, 'Se': 2, 'Te': 2, 'As': 3, 'Sb': 3,
-            'He': 0, 'Ne': 0, 'Ar': 0
+            'He': 0, 'Ne': 0, 'Ar': 0, 'Kr': 0, 'Xe': 0,
+            'Be': 2, 'Sc': 3, 'Ti': 4, 'V': 5, 'Cr': 6,
+            'Mn': 7, 'Co': 3, 'Ni': 2, 'Ga': 3, 'Ge': 4,
+            'Rb': 1, 'Sr': 2, 'Y': 3, 'Zr': 4, 'Nb': 5,
+            'Mo': 6, 'Tc': 7, 'Ru': 4, 'Rh': 3, 'Pd': 2,
+            'Ag': 1, 'Cd': 2, 'In': 3, 'Sn': 4, 'Ba': 2
         };
         
-        // Expanded valences (with d-orbitals)
+        // Valence electrons (for formal charge calculations)
+        this.valenceElectrons = {
+            'H': 1, 'C': 4, 'N': 5, 'O': 6, 'F': 7,
+            'P': 5, 'S': 6, 'Cl': 7, 'Br': 7, 'I': 7,
+            'B': 3, 'Si': 4, 'Li': 1, 'Na': 1, 'K': 1,
+            'Mg': 2, 'Ca': 2, 'Al': 3, 'Fe': 8, 'Cu': 11,
+            'Zn': 12, 'Se': 6, 'Te': 6, 'As': 5, 'Sb': 5,
+            'He': 2, 'Ne': 8, 'Ar': 8, 'Kr': 8, 'Xe': 8,
+            'Be': 2, 'Sc': 3, 'Ti': 4, 'V': 5, 'Cr': 6,
+            'Mn': 7, 'Co': 9, 'Ni': 10, 'Ga': 3, 'Ge': 4,
+            'Rb': 1, 'Sr': 2, 'Y': 3, 'Zr': 4, 'Nb': 5,
+            'Mo': 6, 'Tc': 7, 'Ru': 8, 'Rh': 9, 'Pd': 10,
+            'Ag': 11, 'Cd': 12, 'In': 3, 'Sn': 4, 'Ba': 2
+        };
+        
+        // Expanded valences (with d-orbitals) - elements that can exceed octet
         this.expandedValence = {
             'P': [3, 5], 'S': [2, 4, 6], 'Cl': [1, 3, 5, 7],
-            'Br': [1, 3, 5], 'I': [1, 3, 5, 7]
+            'Br': [1, 3, 5, 7], 'I': [1, 3, 5, 7],
+            'Se': [2, 4, 6], 'Te': [2, 4, 6], 'As': [3, 5],
+            'Sb': [3, 5], 'Xe': [2, 4, 6, 8]
         };
         
-        // Electronegativity values (Pauling scale)
+        // Maximum valences (including expanded octet)
+        this.maxValence = {
+            'P': 5, 'S': 6, 'Cl': 7, 'Br': 7, 'I': 7,
+            'Se': 6, 'Te': 6, 'As': 5, 'Sb': 5, 'Xe': 8
+        };
+        
+        // Electronegativity values (Pauling scale) - enhanced
         this.electronegativity = {
             'H': 2.20, 'C': 2.55, 'N': 3.04, 'O': 3.44, 'F': 3.98,
             'P': 2.19, 'S': 2.58, 'Cl': 3.16, 'Br': 2.96, 'I': 2.66,
             'B': 2.04, 'Si': 1.90, 'Li': 0.98, 'Na': 0.93, 'K': 0.82,
             'Mg': 1.31, 'Ca': 1.00, 'Al': 1.61, 'Fe': 1.83, 'Cu': 1.90,
             'Zn': 1.65, 'Se': 2.55, 'Te': 2.10, 'As': 2.18, 'Sb': 2.05,
-            'He': 0.0, 'Ne': 0.0, 'Ar': 0.0
+            'He': 0.0, 'Ne': 0.0, 'Ar': 0.0, 'Kr': 3.00, 'Xe': 2.60,
+            'Be': 1.57, 'Sc': 1.36, 'Ti': 1.54, 'V': 1.63, 'Cr': 1.66,
+            'Mn': 1.55, 'Co': 1.88, 'Ni': 1.91, 'Ga': 1.81, 'Ge': 2.01,
+            'Rb': 0.82, 'Sr': 0.95, 'Y': 1.22, 'Zr': 1.33, 'Nb': 1.6,
+            'Mo': 2.16, 'Tc': 1.9, 'Ru': 2.2, 'Rh': 2.28, 'Pd': 2.20,
+            'Ag': 1.93, 'Cd': 1.69, 'In': 1.78, 'Sn': 1.96, 'Ba': 0.89
         };
+        
+        // Atomic radii (pm) for bond length estimation
+        this.atomicRadius = {
+            'H': 53, 'C': 67, 'N': 56, 'O': 48, 'F': 42,
+            'P': 98, 'S': 88, 'Cl': 79, 'Br': 94, 'I': 115,
+            'B': 87, 'Si': 111, 'Li': 152, 'Na': 186, 'K': 227,
+            'Mg': 160, 'Ca': 197, 'Al': 143
+        };
+        
+        // Elements that commonly form radicals (unpaired electrons)
+        this.canFormRadical = new Set(['C', 'N', 'O', 'S', 'P', 'Cl', 'Br', 'I']);
     }
     
-    // Calculate implicit hydrogens for an atom (REVAMPED: Uses periodic table data)
+    // Calculate implicit hydrogens for an atom
     calculateImplicitHydrogens(atom, molecule) {
         const elementSymbol = atom.element;
         
@@ -92,87 +136,158 @@ class ChemistryIntelligence {
         return Math.max(0, implicitH);
     }
     
-    // Calculate formal charge on an atom (FIXED: Proper chemistry formula)
+    // Calculate formal charge on an atom (Enhanced with proper chemistry formula)
+    // Formula: FC = V - (N + B/2)
+    // V = valence electrons, N = nonbonding electrons, B = bonding electrons
     calculateFormalCharge(atom, molecule) {
         const elementSymbol = atom.element;
         
-        // CRITICAL FIX: Use correct chemistry valences (periodic table JSON has wrong values!)
-        const correctValences = {
-            'O': 2, 'N': 3, 'S': 2, 'P': 3, 'F': 1, 'Cl': 1, 'Br': 1, 'I': 1,
-            'C': 4, 'H': 1, 'B': 3, 'Si': 4
-        };
-        
-        // Use correct valence if available
-        let valence = correctValences[elementSymbol];
-        
-        if (!valence) {
-            // Try periodic table or standardValence
-            if (typeof getElement !== 'undefined') {
-                const elementData = getElement(elementSymbol);
-                if (elementData && elementData.valence !== undefined) {
-                    valence = elementData.valence;
-                    // Override with correct value if periodic table is wrong
-                    if (correctValences[elementSymbol]) {
-                        valence = correctValences[elementSymbol];
-                    }
-                }
-            }
-            
-            // Fallback to standardValence
-            if (!valence || valence === 0) {
-                valence = this.standardValence[elementSymbol];
-            }
+        // Get valence electrons (not bonding capacity)
+        const V = this.valenceElectrons[elementSymbol];
+        if (V === undefined || V === 0) {
+            // Fallback for unknown elements
+            return 0;
         }
-        
-        if (!valence || valence === 0) return 0;
         
         const bonds = molecule.getAtomBonds(atom.id);
         let bondSum = 0;
+        let explicitH = 0;
         
-        // Calculate total bonding electrons (each bond contributes order electrons)
+        // Calculate total bonding electrons and count explicit hydrogens
         bonds.forEach(bond => {
             const bondOrder = bond.order || 1;
             bondSum += bondOrder;
+            
+            // Count explicit hydrogen atoms
+            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+            const otherAtom = molecule.getAtomById(otherId);
+            if (otherAtom && otherAtom.element === 'H') {
+                explicitH++;
+            }
         });
         
+        // Account for formal charge in implicit H calculation
+        const currentCharge = atom.charge || 0;
+        
+        // Calculate implicit hydrogens
+        const standardValence = this.standardValence[elementSymbol] || 0;
+        const implicitH = Math.max(0, standardValence - bondSum - currentCharge);
+        
         // Calculate nonbonding electrons (lone pairs)
-        const implicitH = this.calculateImplicitHydrogens(atom, molecule);
+        // Available electrons = V - charge
+        // Used for bonding = (bondSum * 2) / 2 + explicitH = bondSum + explicitH
+        // Remaining = (V - charge) - (bondSum + explicitH)
+        const effectiveElectrons = V - currentCharge;
+        const usedForBonding = bondSum + explicitH;
+        const remainingElectrons = effectiveElectrons - usedForBonding;
+        const lonePairs = Math.max(0, Math.floor(remainingElectrons / 2));
+        const nonbondingElectrons = lonePairs * 2;
         
-        // Formal charge = valence electrons - (nonbonding electrons + 1/2 bonding electrons)
-        // FC = V - (N + B/2) where:
-        //   V = valence electrons (from periodic table)
-        //   N = nonbonding electrons (lone pairs) = (valence - bondSum - implicitH) * 2
-        //   B = bonding electrons (shared) = bondSum * 2
-        
-        // Calculate lone pairs: (valence - bondSum - implicitH) represents available electron pairs
-        const lonePairs = Math.max(0, valence - bondSum - implicitH);
-        const nonbondingElectrons = lonePairs * 2; // Each lone pair = 2 electrons
-        
-        // Bonding electrons: each bond order contributes 2 shared electrons
+        // Bonding electrons: each bond contributes 2 shared electrons (half per atom)
         const bondingElectrons = bondSum * 2;
         
         // Formal charge = V - (N + B/2)
-        const formalCharge = valence - nonbondingElectrons - (bondingElectrons / 2);
+        const formalCharge = V - nonbondingElectrons - (bondingElectrons / 2);
         
         // Round to avoid floating point errors
         return Math.round(formalCharge * 100) / 100;
     }
     
-    // Check if atom valence is satisfied
+    // Calculate lone pairs more accurately
+    calculateLonePairs(atom, molecule) {
+        const elementSymbol = atom.element;
+        const V = this.valenceElectrons[elementSymbol];
+        if (V === undefined || V === 0) return 0;
+        
+        const bonds = molecule.getAtomBonds(atom.id);
+        let bondSum = 0;
+        let explicitH = 0;
+        
+        bonds.forEach(bond => {
+            const bondOrder = bond.order || 1;
+            bondSum += bondOrder;
+            
+            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+            const otherAtom = molecule.getAtomById(otherId);
+            if (otherAtom && otherAtom.element === 'H') {
+                explicitH++;
+            }
+        });
+        
+        const charge = atom.charge || 0;
+        const effectiveElectrons = V - charge;
+        const usedForBonding = bondSum + explicitH;
+        const remainingElectrons = effectiveElectrons - usedForBonding;
+        
+        return Math.max(0, Math.floor(remainingElectrons / 2));
+    }
+    
+    // Detect radicals (atoms with unpaired electrons)
+    detectRadical(atom, molecule) {
+        const elementSymbol = atom.element;
+        if (!this.canFormRadical.has(elementSymbol)) {
+            return false;
+        }
+        
+        const V = this.valenceElectrons[elementSymbol];
+        if (V === undefined) return false;
+        
+        const bonds = molecule.getAtomBonds(atom.id);
+        let bondSum = 0;
+        let explicitH = 0;
+        
+        bonds.forEach(bond => {
+            bondSum += (bond.order || 1);
+            const otherId = bond.atom1 === atom.id ? bond.atom2 : bond.atom1;
+            const otherAtom = molecule.getAtomById(otherId);
+            if (otherAtom && otherAtom.element === 'H') {
+                explicitH++;
+            }
+        });
+        
+        const charge = atom.charge || 0;
+        const effectiveElectrons = V - charge;
+        const usedForBonding = bondSum + explicitH;
+        const remainingElectrons = effectiveElectrons - usedForBonding;
+        
+        // Radical if odd number of remaining electrons
+        return remainingElectrons % 2 === 1;
+    }
+    
+    // Check if atom valence is satisfied (enhanced with expanded octet support)
     isValenceSatisfied(atom, molecule) {
         const element = atom.element;
-        const valence = this.standardValence[element];
-        if (!valence) return true;
+        const standardValence = this.standardValence[element];
+        if (!standardValence) return true;
         
         const bonds = molecule.getAtomBonds(atom.id);
         let bondSum = 0;
         
         bonds.forEach(bond => {
-            bondSum += bond.order;
+            bondSum += (bond.order || 1);
         });
         
         const implicitH = this.calculateImplicitHydrogens(atom, molecule);
-        return (bondSum + implicitH) <= valence;
+        const totalValence = bondSum + implicitH;
+        
+        // Check standard valence first
+        if (totalValence <= standardValence) {
+            return true;
+        }
+        
+        // Check if element can have expanded octet
+        const maxValence = this.maxValence[element];
+        if (maxValence && totalValence <= maxValence) {
+            // Check if expanded valence is reasonable (e.g., S can have 6, P can have 5)
+            return true;
+        }
+        
+        return false;
+    }
+    
+    // Get maximum allowed valence for an element
+    getMaxValence(element) {
+        return this.maxValence[element] || this.standardValence[element] || 0;
     }
     
     // Detect aromatic rings (Hückel's rule: 4n+2 π electrons)

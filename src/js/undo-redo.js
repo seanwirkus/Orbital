@@ -19,20 +19,24 @@ class UndoRedoManager {
 
         try {
             // Deep clone the molecule state
+            // FIXED: Use atom.position.x and atom.position.y instead of atom.x/y
             const state = {
                 atoms: molecule.atoms.map(atom => ({
                     id: atom.id,
                     element: atom.element,
-                    x: atom.x,
-                    y: atom.y,
+                    x: atom.position ? atom.position.x : (atom.x || 0),
+                    y: atom.position ? atom.position.y : (atom.y || 0),
                     charge: atom.charge || 0,
-                    implicit_h: atom.implicit_h || 0
+                    implicit_h: atom.implicit_h || 0,
+                    hybridization: atom.hybridization || null
                 })),
                 bonds: molecule.bonds.map(bond => ({
                     atom1: bond.atom1,
                     atom2: bond.atom2,
-                    order: bond.order || 1
-                }))
+                    order: bond.order || 1,
+                    stereo: bond.stereo || 'none'
+                })),
+                nextAtomId: molecule.nextAtomId || molecule.atoms.length
             };
 
             // Remove any redo states if we're not at the end of history
@@ -106,12 +110,23 @@ class UndoRedoManager {
                 const newAtom = molecule.addAtom(atomData.element, atomData.x, atomData.y);
                 newAtom.charge = atomData.charge || 0;
                 newAtom.implicit_h = atomData.implicit_h || 0;
+                if (atomData.hybridization) {
+                    newAtom.hybridization = atomData.hybridization;
+                }
             });
 
             // Restore bonds
             state.bonds.forEach(bondData => {
-                molecule.addBond(bondData.atom1, bondData.atom2, bondData.order || 1);
+                const bond = molecule.addBond(bondData.atom1, bondData.atom2, bondData.order || 1);
+                if (bond && bondData.stereo) {
+                    bond.stereo = bondData.stereo;
+                }
             });
+
+            // Restore nextAtomId to prevent ID conflicts
+            if (state.nextAtomId !== undefined) {
+                molecule.nextAtomId = state.nextAtomId;
+            }
 
             console.log('✓ State applied successfully');
         } catch (error) {
