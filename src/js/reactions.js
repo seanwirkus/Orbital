@@ -290,10 +290,10 @@ function predictReactionType(molecule) {
     const bonds = molecule.bonds;
     const atoms = molecule.atoms;
     
-    let hasDoubleBond = bonds.some(b => b.order === 2);
-    let hasTripleBond = bonds.some(b => b.order === 3);
-    let hasHalogen = atoms.some(a => ['F', 'Cl', 'Br', 'I'].includes(a.element));
-    let hasOH = false; // Would need functional group detection
+    const hasDoubleBond = bonds.some(b => b.order === 2);
+    const hasTripleBond = bonds.some(b => b.order === 3);
+    const hasHalogen = atoms.some(a => ['F', 'Cl', 'Br', 'I'].includes(a.element));
+    const hasOH = false; // Would need functional group detection
     
     if (hasDoubleBond) {
         return ['addition', 'elimination', 'oxidation'];
@@ -306,9 +306,9 @@ function predictReactionType(molecule) {
 
 // Generate reaction arrow with conditions
 function getReactionArrow(reagents, conditions) {
-    let arrow = '―→';
-    let aboveArrow = reagents.join(', ');
-    let belowArrow = conditions.join(', ');
+    const arrow = '―→';
+    const aboveArrow = reagents.join(', ');
+    const belowArrow = conditions.join(', ');
     
     return {
         arrow,

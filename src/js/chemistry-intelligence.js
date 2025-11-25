@@ -130,7 +130,7 @@ class ChemistryIntelligence {
         
         // Calculate: implicitH = valence - bondSum - charge
         // This is the correct chemistry formula
-        let implicitH = valence - bondSum - charge;
+        const implicitH = valence - bondSum - charge;
         
         // Can't have negative hydrogens
         return Math.max(0, implicitH);
@@ -334,7 +334,7 @@ class ChemistryIntelligence {
         if (bonds.length === 0) return 'sp3';
         
         // Count σ and π bonds
-        let sigmaBonds = bonds.length;
+        const sigmaBonds = bonds.length;
         let piBonds = 0;
         
         bonds.forEach(bond => {

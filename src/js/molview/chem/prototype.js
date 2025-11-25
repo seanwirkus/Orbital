@@ -15,7 +15,7 @@ Array.prototype.clone = function()
 	return Array.prototype.slice.call(this, 0);
 }
 
-Array.prototype.find = function()
+Array.prototype.find = function(iterator, context)
 {
 	var result;
     this.each(function(value, index)
@@ -30,7 +30,7 @@ Array.prototype.find = function()
     return result;
 }
 
-Array.prototype.findAll = function()
+Array.prototype.findAll = function(iterator, context)
 {
 	var results = [];
 	this.each(function(value, index)

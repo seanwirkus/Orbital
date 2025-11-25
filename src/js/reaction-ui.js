@@ -1285,7 +1285,7 @@ class ReactionUI {
 
         // Try PubChem for product prediction (search by formula/name, not SMILES)
         let productMolecule = null;
-        let pubchemProduct = null;
+        const pubchemProduct = null;
 
         // Note: PubChem doesn't support reaction prediction via API
         // We'll use the local reaction engine for product prediction

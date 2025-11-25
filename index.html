@@ -6,6 +6,7 @@
     <title>Orbital - Organic Chemistry Simulator</title>
     <link rel="stylesheet" href="src/css/styles.css">
     <link type="text/css" rel="stylesheet" href="//fonts.googleapis.com/css?family=Open+Sans:300italic,400italic,700italic,400,300,700" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ctext x='0' y='14' font-size='16'%3E⚛️%3C/text%3E%3C/svg%3E">
 </head>
 <body>
     <div class="app-container">
@@ -141,11 +142,11 @@
                             <div class="toolbar-group">
                                 <span class="toolbar-label">Tools</span>
                                 <div class="tool-btn-group">
-                                    <button class="tool-btn active" id="tool-atom" title="Place atoms (A)">⚛️ Atom</button>
-                                    <button class="tool-btn" id="tool-bond" title="Draw bonds (B)">━ Bond</button>
-                                    <button class="tool-btn" id="tool-chain" title="Chain drawing (C)">〰️ Chain</button>
-                                    <button class="tool-btn" id="tool-select" title="Select (S)">👆 Select</button>
-                                    <button class="tool-btn" id="tool-erase" title="Erase (E)">🗑️ Erase</button>
+                                    <button class="tool-btn active" id="tool-atom" data-tool="atom" title="Place atoms (A)">⚛️ Atom</button>
+                                    <button class="tool-btn" id="tool-bond" data-tool="bond" title="Draw bonds (B)">━ Bond</button>
+                                    <button class="tool-btn" id="tool-chain" data-tool="chain" title="Chain drawing (C)">〰️ Chain</button>
+                                    <button class="tool-btn" id="tool-select" data-tool="select" title="Select (S)">👆 Select</button>
+                                    <button class="tool-btn" id="tool-erase" data-tool="erase" title="Erase (E)">🗑️ Erase</button>
                                 </div>
                             </div>
                             <div class="toolbar-group">
@@ -339,9 +340,10 @@
     <script src="src/js/elements.js"></script>
     <script src="src/js/periodic-table-loader.js"></script>
     <script src="src/js/geometry.js"></script>
-    <!-- <script src="src/js/chemistry-intelligence.js"></script> MOVED -->
+    chemistry-intelligence.js moved here (script intentionally omitted from OLD SYSTEM block)
     <script src="src/js/smart-chemistry-logic.js"></script>
-    <script src="src/js/smart-drawing.js"></script>
+    <script src="orbital-engine/core/smart-drawing.js"></script>
+    <script src="orbital-engine/core/renderer.js"></script>
     <script src="src/js/clipboard.js"></script>
     <script src="src/js/molecule.js"></script>
     <script src="src/js/naming.js"></script>
@@ -418,6 +420,8 @@
     <!-- Orbital Refactored Architecture -->
     <script src="src/js/orbital-renderer.js"></script>
     <script src="src/js/orbital-ui.js"></script>
+    <!-- Ensure tool modules load before manager -->
+    <script src="src/js/smart-chain-tool.js"></script>
     <script src="src/js/orbital-manager.js"></script>
     
     <!-- Legacy - Remove after verification -->

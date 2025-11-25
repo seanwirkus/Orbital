@@ -272,7 +272,8 @@ Note: This structure can be analyzed, modified, or used for reaction predictions
         const atoms = [];
         const bonds = [];
         let currentAtom = null;
-        let x = 100, y = 100;
+        let x = 100;
+        const y = 100;
         
         const chars = smiles.trim().split('');
         

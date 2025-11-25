@@ -290,7 +290,7 @@ class OrganicDrawingEngine {
         const startPos = startAtom ? this.getAtomPosition(startAtom) : { x: this.chainState.startX, y: this.chainState.startY };
         let prevX = startPos.x;
         let prevY = startPos.y;
-        let baseAngle = this.getChainBaseAngle(startAtom);
+        const baseAngle = this.getChainBaseAngle(startAtom);
         
         for (let i = 0; i < segments; i++) {
             const zigzag = (i % 2 === 0 ? 1 : -1) * this.chainConfig.zigzagAngle;
@@ -356,7 +356,7 @@ class OrganicDrawingEngine {
         
         const startAtom = this.chainState.startAtom;
         let position = startAtom ? this.getAtomPosition(startAtom) : { x: this.chainState.startX, y: this.chainState.startY };
-        let baseAngle = this.getChainBaseAngle(startAtom);
+        const baseAngle = this.getChainBaseAngle(startAtom);
         let lastAtomId = startAtom ? startAtom.id : null;
         
         if (!lastAtomId) {

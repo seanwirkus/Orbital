@@ -503,7 +503,7 @@ class RendererV2 {
         
         for (let i = 0; i < sorted.length; i++) {
             const next = (i + 1) % sorted.length;
-            let start = sorted[i];
+            const start = sorted[i];
             let end = sorted[next];
             if (end <= start) end += Math.PI * 2;
             

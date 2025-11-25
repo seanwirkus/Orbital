@@ -1,3 +1,4 @@
+/* exported OrbitalUI */
 /**
  * OrbitalUI - Interaction Manager
  * Handles Toolbar, Keyboard Shortcuts, and DOM Events.
@@ -8,7 +9,6 @@ class OrbitalUI {
         this.bindControls();
         this.bindKeyboard();
     }
-
     bindControls() {
         // Hook into canvas events for Chain Tool
         // Use container to ensure we catch events even if canvas is replaced
@@ -47,6 +47,24 @@ class OrbitalUI {
                     }
                 }
             }, true); // Capture phase
+
+            // PROBLEM FIX: Restore atom placement for native atom tool
+            canvas.addEventListener('mousedown', e => {
+                if (
+                    this.manager.molpad &&
+                    this.manager.molpad.tool &&
+                    this.manager.molpad.tool.type === 'atom' &&
+                    (!this.manager.chainTool || !this.manager.chainTool.isChainMode)
+                ) {
+                    const handler = this.manager.molpad.getHandler();
+                    if (handler && typeof handler.onPointerDown === 'function') {
+                        handler.onPointerDown(e, this.manager.molpad);
+                        if (typeof this.manager.molpad.requestRedraw === 'function') {
+                            this.manager.molpad.requestRedraw();
+                        }
+                    }
+                }
+            });
 
             container.addEventListener('mousemove', (e) => {
                 if (this.manager.chainTool && this.manager.chainTool.isChainMode) {
@@ -97,6 +115,24 @@ class OrbitalUI {
                 btn.classList.add('active');
             });
         });
+
+        // Element Selection: Ensure new element is applied instantly if atom tool is active
+        document.querySelectorAll('.element-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const element = btn.dataset.element;
+                if (this.manager.toolbar) {
+                    this.manager.toolbar.setElement(element);
+                }
+                document.querySelectorAll('.element-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const statusElement = document.getElementById('status-element');
+                if (statusElement) statusElement.textContent = element;
+                // If atom tool is active, sync molpad tool data immediately
+                if (this.manager.molpad && this.manager.molpad.tool && this.manager.molpad.tool.type === 'atom') {
+                    this.manager.molpad.setTool('atom', { element });
+                }
+            });
+        });
     }
 
     bindToggle(id, callback) {
@@ -135,7 +171,9 @@ class OrbitalUI {
             'select': 'select'
         };
         if (toolMap[tool]) {
-            this.manager.molpad.setTool(toolMap[tool]);
+            const mpTool = toolMap[tool];
+            const element = (this.manager.toolbar && this.manager.toolbar.getElement) ? this.manager.toolbar.getElement() : 'C';
+            this.manager.molpad.setTool(mpTool, { element });
         }
     }
 
@@ -158,3 +196,5 @@ class OrbitalUI {
         if (el) el.textContent = count;
     }
 }
+// Expose OrbitalUI globally for instantiation via other modules
+if (typeof window !== 'undefined') window.OrbitalUI = OrbitalUI;

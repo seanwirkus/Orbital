@@ -2,8 +2,9 @@
 // Professional chain drawing with real-time preview
 
 class SmartChainTool {
-    constructor(molecule, renderer, undoRedoManager) {
-        this.molecule = molecule;
+    constructor(molpad, renderer, undoRedoManager) {
+        this.molpad = molpad;  // MolPad instance, not raw molecule
+        this.molecule = molpad; // Alias for compatibility
         this.renderer = renderer;
         this.undoRedoManager = undoRedoManager;
         this.isChainMode = false;
@@ -73,7 +74,7 @@ class SmartChainTool {
         this.currentY = canvasY;
 
         // Check if starting from existing atom
-        this.startAtom = this.molecule.getAtomAtPosition(canvasX, canvasY, 25);
+        this.startAtom = this.getAtomAtPosition(canvasX, canvasY, 25);
 
         this.showPopup(canvasX, canvasY, 1);
         return true;
@@ -101,19 +102,20 @@ class SmartChainTool {
         // Set preview state in renderer (it will draw the preview)
         if (this.renderer && this.previewAtoms.length > 0) {
             const startAtomPos = this.startAtom 
-                ? { x: this.startAtom.position.x, y: this.startAtom.position.y }
+                ? (this.startAtom.center ? { x: this.startAtom.center.x, y: this.startAtom.center.y } : { x: this.startAtom.x || this.startAtom.position?.x || this.startX, y: this.startAtom.y || this.startAtom.position?.y || this.startY })
                 : { x: this.startX, y: this.startY };
             
             // Convert preview atoms to renderer format
-            const previewAtoms = this.previewAtoms.map(atom => ({
-                id: `preview_${atom.x}_${atom.y}`,
+            const previewAtoms = this.previewAtoms.map((atom, idx) => ({
+                id: `preview_${idx}_${Math.round(atom.x)}_${Math.round(atom.y)}`,
                 element: atom.element,
+                center: { x: atom.x, y: atom.y },
                 position: { x: atom.x, y: atom.y }
             }));
             
             // Create preview bonds
             const previewBonds = [];
-            let lastAtom = this.startAtom || { id: 'start', position: startAtomPos };
+            let lastAtom = { id: 'start', position: startAtomPos };
             for (const atom of previewAtoms) {
                 previewBonds.push({
                     atom1: lastAtom.id,
@@ -122,14 +124,14 @@ class SmartChainTool {
                 });
                 lastAtom = atom;
             }
-            
+
             this.renderer.setPreviewState({
                 chainPreview: {
                     atoms: previewAtoms,
                     bonds: previewBonds,
                     startAtom: this.startAtom,
-                    startX: this.startX,
-                    startY: this.startY
+                    startX: startAtomPos.x,
+                    startY: startAtomPos.y
                 }
             });
         }
@@ -180,9 +182,9 @@ class SmartChainTool {
         const dy = this.currentY - this.startY;
         const baseAngle = Math.atan2(dy, dx);
 
-        // Starting position
-        let x = this.startAtom ? this.startAtom.position.x : this.startX;
-        let y = this.startAtom ? this.startAtom.position.y : this.startY;
+        // Starting position (use .center or fallback to .x/.y for MolPad atoms)
+        let x = this.startAtom ? (this.startAtom.center ? this.startAtom.center.x : this.startAtom.x) : this.startX;
+        let y = this.startAtom ? (this.startAtom.center ? this.startAtom.center.y : this.startAtom.y) : this.startY;
 
         // Generate preview atoms in proper zigzag pattern /\/\/\/\
         for (let i = 0; i < numCarbons; i++) {
@@ -194,9 +196,11 @@ class SmartChainTool {
             y += this.BOND_LENGTH * Math.sin(bondAngle);
 
             this.previewAtoms.push({ 
+                id: `preview_${i}`,
                 x, 
                 y, 
                 element: this.currentElement,
+                center: { x, y },
                 position: { x, y }
             });
         }
@@ -223,15 +227,20 @@ class SmartChainTool {
         const dy = this.currentY - this.startY;
         const baseAngle = Math.atan2(dy, dx);
 
-        let x = this.startAtom ? this.startAtom.position.x : this.startX;
-        let y = this.startAtom ? this.startAtom.position.y : this.startY;
+        let x = this.startAtom ? this.startAtom.center.x : this.startX;
+        let y = this.startAtom ? this.startAtom.center.y : this.startY;
 
-        let lastAtomId = this.startAtom ? this.startAtom.id : null;
+        let lastAtom = this.startAtom || null;
         
-        // If no start atom, create first atom
-        if (!lastAtomId) {
-            const firstAtom = this.molecule.addAtom(this.currentElement, x, y);
-            lastAtomId = firstAtom.id;
+        // If no start atom, create first atom using MolPad API (createFragment)
+        const mol = this.molpad.mol;
+        if (!lastAtom) {
+            const frag = {
+                atoms: [{ center: { x: x, y: y }, element: this.currentElement }],
+                bonds: []
+            };
+            const ret = mol.createFragment(frag, false);
+            lastAtom = mol.atoms[ret.atoms[0]];
         }
 
         // Add atoms with proper zigzag pattern /\/\/\/\
@@ -243,16 +252,36 @@ class SmartChainTool {
             x += this.BOND_LENGTH * Math.cos(bondAngle);
             y += this.BOND_LENGTH * Math.sin(bondAngle);
 
-            const newAtom = this.molecule.addAtom(this.currentElement, x, y);
-            this.molecule.addBond(lastAtomId, newAtom.id, 1);
-            
-            lastAtomId = newAtom.id;
+            const frag = {
+                atoms: [{ center: { x: x, y: y }, element: this.currentElement }],
+                bonds: []
+            };
+            const ret = mol.createFragment(frag, false);
+            const newAtomIndex = ret.atoms[0];
+            // Create bond connecting lastAtom.index -> newAtomIndex
+            const bond = new MPBond(this.molpad, {
+                i: mol.bonds.length,
+                type: MP_BOND_SINGLE,
+                stereo: MP_STEREO_NONE,
+                from: lastAtom.index,
+                to: newAtomIndex,
+                selected: false
+            });
+            mol.bonds.push(bond);
+            mol.atoms[bond.from].addBond(bond.index);
+            mol.atoms[bond.to].addBond(bond.index);
+            lastAtom = mol.atoms[newAtomIndex];
         }
 
-        // Save state AFTER adding chain (consistent with other operations)
-        // This allows undo to revert back to state before chain was added
-        if (this.undoRedoManager) {
-            this.undoRedoManager.saveState(this.molecule);
+        // Ensure MPMolecule updates and undo snapshots are recorded
+        if (mol && typeof mol.updateCopy === 'function') mol.updateCopy();
+        if (this.molpad && typeof this.molpad.changed === 'function') this.molpad.changed();
+        if (this.undoRedoManager && typeof this.undoRedoManager.saveState === 'function') {
+            try { this.undoRedoManager.saveState(this.molpad.mol); } catch (_) { /* ignore */ }
+        }
+        // Trigger MolPad redraw
+        if (this.molpad && this.molpad.requestRedraw) {
+            this.molpad.requestRedraw();
         }
     }
 
@@ -263,6 +292,21 @@ class SmartChainTool {
         this.previewAtoms = [];
         this.previewBonds = [];
         this.startAtom = null;
+    }
+
+    /**
+     * Get atom at position using MolPad's structure
+     */
+    getAtomAtPosition(x, y, threshold = 25) {
+        if (!this.molpad || !this.molpad.mol) return null;
+        const mol = this.molpad.mol;
+        for (const atom of mol.atoms) {
+            if (atom && atom.center) {
+                const dist = Math.hypot(atom.center.x - x, atom.center.y - y);
+                if (dist <= threshold) return atom;
+            }
+        }
+        return null;
     }
 
     /**
@@ -331,4 +375,5 @@ class SmartChainTool {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = SmartChainTool;
 }
+if (typeof window !== 'undefined') window.SmartChainTool = SmartChainTool;
 

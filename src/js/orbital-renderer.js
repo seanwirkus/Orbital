@@ -1,3 +1,4 @@
+/* exported OrbitalRenderer */
 /**
  * OrbitalRenderer - Custom Drawing Logic
  * Handles overlay rendering (Lone Pairs, Charges, Warnings) on top of MolPad.
@@ -8,7 +9,7 @@ class OrbitalRenderer {
         this.chemIntelligence = chemIntelligence;
         
         // Expose canvas property for SmartChainTool compatibility
-        this.canvas = molpad.container ? molpad.container.querySelector('canvas') : null;
+        this.canvas = molpad.container && molpad.container[0] ? molpad.container[0].querySelector('canvas') : null;
         
         // Preview State for Chain Tool
         this.previewState = null;
@@ -90,12 +91,32 @@ class OrbitalRenderer {
         ctx.lineJoin = 'round';
 
         preview.bonds.forEach(bond => {
-            const atom1 = bond.atom1 === 'start' ? preview.startAtom || {position: {x: preview.startX, y: preview.startY}} : preview.atoms.find(a => a.id === bond.atom1);
-            const atom2 = preview.atoms.find(a => a.id === bond.atom2);
+            let pos1 = null, pos2 = null;
+
+            if (bond.atom1 === 'start') {
+                pos1 = preview.startAtom ? preview.startAtom.center : {x: preview.startX, y: preview.startY};
+            } else {
+                // Manually find atom in preview.atoms to avoid prototype patch issues
+                for (let i = 0; i < preview.atoms.length; i++) {
+                    const a = preview.atoms[i];
+                    if (a && a.id === bond.atom1) {
+                        pos1 = a.center || {x: a.x, y: a.y};
+                        break;
+                    }
+                }
+            }
+
+            for (let i = 0; i < preview.atoms.length; i++) {
+                const a = preview.atoms[i];
+                if (a && a.id === bond.atom2) {
+                    pos2 = a.center || {x: a.x, y: a.y};
+                    break;
+                }
+            }
             
-            if (atom1 && atom2) {
-                ctx.moveTo(atom1.position.x, atom1.position.y);
-                ctx.lineTo(atom2.position.x, atom2.position.y);
+            if (pos1 && pos2) {
+                ctx.moveTo(pos1.x, pos1.y);
+                ctx.lineTo(pos2.x, pos2.y);
             }
         });
         ctx.stroke();
@@ -103,9 +124,10 @@ class OrbitalRenderer {
         // Draw Atoms (Nodes)
         ctx.fillStyle = '#000';
         preview.atoms.forEach(atom => {
+            const pos = atom.center || {x: atom.x, y: atom.y};
             // Draw simple dot for carbon chain nodes
             ctx.beginPath();
-            ctx.arc(atom.position.x, atom.position.y, 3, 0, Math.PI * 2);
+            ctx.arc(pos.x, pos.y, 3, 0, Math.PI * 2);
             ctx.fill();
         });
     }
@@ -200,3 +222,5 @@ class OrbitalRenderer {
         // OH label logic
     }
 }
+// Expose globally for modules that instantiate OrbitalRenderer by name
+if (typeof window !== 'undefined') window.OrbitalRenderer = OrbitalRenderer;

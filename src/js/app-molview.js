@@ -2341,7 +2341,7 @@ class OrbitalAppMolView {
                 const spread = Math.PI; // 180 degrees
                 for (let i = 0; i < count; i++) {
                     const offset = (spread * (i - (count - 1) / 2)) / Math.max(1, count - 1);
-                    let angle = (oppositeAngle + offset + Math.PI * 2) % (Math.PI * 2);
+                    const angle = (oppositeAngle + offset + Math.PI * 2) % (Math.PI * 2);
                     finalAngles.push(angle);
                 }
             }
@@ -2387,7 +2387,7 @@ class OrbitalAppMolView {
                     let angle = gap.center;
                     
                     // Ensure minimum separation from bonds
-                    let tooCloseToBond = false;
+                    const tooCloseToBond = false;
                     for (const bondAngle of normalizedBondAngles) {
                         let dist = Math.abs(angle - bondAngle);
                         if (dist > Math.PI) dist = Math.PI * 2 - dist;

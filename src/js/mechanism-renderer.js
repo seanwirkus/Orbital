@@ -122,7 +122,7 @@ class MechanismRenderer {
                 const arrowBaseY = yCenter + 260;
                 const availableWidth = canvasWidth - 400;
                 const arrowSpacing = Math.min(360, Math.max(180, availableWidth / Math.max(1, mechanism.length)));
-                let arrowStart = startX;
+                const arrowStart = startX;
                 mechanism.forEach((step, index) => {
                     const stepStart = arrowStart + index * arrowSpacing * 0.9;
                     this.drawMechanismArrow(stepStart, arrowBaseY, stepStart + arrowSpacing * 0.6, arrowBaseY, step, index);

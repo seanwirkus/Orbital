@@ -261,17 +261,16 @@ MPPoint.prototype.distanceTo = function(p)
 
 MPPoint.prototype.fromPointer = function(e)
 {
-	var oe = e.originalEvent;
-	if(oe.targetTouches && oe.targetTouches.length > 0)
-	{
-		this.set(oe.targetTouches[0].pageX, oe.targetTouches[0].pageY);
-	}
-	else
-	{
-		this.set(oe.pageX, oe.pageY);
-	}
-
-	return this;
+    var oe = e.originalEvent || e;
+    if(oe.targetTouches && oe.targetTouches.length > 0)
+    {
+        this.set(oe.targetTouches[0].pageX, oe.targetTouches[0].pageY);
+    }
+    else
+    {
+        this.set(oe.pageX, oe.pageY);
+    }
+    return this;
 }
 
 MPPoint.prototype.fromRelativePointer = function(e, mpctx)

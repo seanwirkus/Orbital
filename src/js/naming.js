@@ -300,7 +300,7 @@ function getDescriptiveName(moleculeData) {
     let description = iupacName;
     
     const groupList = [];
-    for (let group in functionalGroups) {
+    for (const group in functionalGroups) {
         if (functionalGroups[group]) {
             groupList.push(getFunctionalGroupName(group));
         }
